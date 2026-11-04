@@ -1,0 +1,141 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One build at a time; a newer push waits instead of cancelling a dependency build that takes hours.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  WORK: /mnt/w
+
+jobs:
+  # OrcaSlicer's dependencies for Android (Boost, OCCT, OpenCV, ...). Hours on a fresh build, then cached.
+  deps:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache key
+        id: key
+        run: |
+          h=$(cat engine/orca.env engine/patches/*.patch engine/patches/local/*.patch engine/scripts/fetch-orca.sh engine/scripts/build-deps.sh 2>/dev/null | sha256sum | cut -c1-16)
+          echo "key=deps-arm64-v8a-$h" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare work directory
+        run: |
+          sudo mkdir -p "$WORK" && sudo chown "$USER" "$WORK"
+          df -h / /mnt || true
+
+      - name: Restore dependencies
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /mnt/w/deps
+          key: ${{ steps.key.outputs.key }}
+          lookup-only: true
+
+      - name: Free disk space
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /opt/hostedtoolcache/CodeQL /usr/local/lib/node_modules || true
+          df -h / /mnt || true
+
+      - name: Install tools
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends ninja-build m4 autoconf automake libtool pkg-config gettext
+          source engine/orca.env
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" "cmake;3.22.1" > /dev/null
+          echo "ANDROID_NDK=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Fetch OrcaSlicer
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: engine/scripts/fetch-orca.sh "$WORK/orcaslicer-src"
+
+      - name: Build dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: engine/scripts/build-deps.sh "$WORK/orcaslicer-src" "$WORK/build-deps" "$WORK/deps" "$WORK/dl"
+
+      - name: Dependency build logs
+        if: failure()
+        run: |
+          find "$WORK/build-deps" -name '*-err.log' -size +0 -newer "$WORK/orcaslicer-src/CMakeLists.txt" 2>/dev/null | while read -r f; do echo "== $f"; tail -n 60 "$f"; done
+          df -h / /mnt || true
+
+      - name: Save dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /mnt/w/deps
+          key: ${{ steps.key.outputs.key }}
+
+  # libslic3r and our slicer executable (engine/core).
+  engine:
+    needs: deps
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare work directory
+        run: sudo mkdir -p "$WORK" && sudo chown "$USER" "$WORK"
+
+      - name: Restore dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: /mnt/w/deps
+          key: ${{ needs.deps.outputs.key }}
+          fail-on-cache-miss: true
+
+      - name: Restore compiler cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /mnt/w/ccache
+          key: ccache-arm64-v8a-${{ github.run_id }}
+          restore-keys: ccache-arm64-v8a-
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends ninja-build ccache
+          source engine/orca.env
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
+          echo "ANDROID_NDK=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+          echo "CCACHE_DIR=$WORK/ccache" >> "$GITHUB_ENV"
+          echo "CCACHE_MAXSIZE=4G" >> "$GITHUB_ENV"
+          echo "CCACHE_COMPILERCHECK=content" >> "$GITHUB_ENV"
+          cmake --version | head -1
+
+      - name: Fetch OrcaSlicer
+        run: engine/scripts/fetch-orca.sh "$WORK/orcaslicer-src"
+
+      - name: Build engine
+        run: |
+          ccache -z || true
+          engine/scripts/build-engine.sh "$WORK" "$WORK/deps/usr/local" "$WORK/out"
+          ccache -s || true
+
+      - name: Save compiler cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: /mnt/w/ccache
+          key: ccache-arm64-v8a-${{ github.run_id }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: engine-arm64-v8a
+          path: /mnt/w/out/
+          retention-days: 14
