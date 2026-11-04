@@ -1,0 +1,43 @@
+{
+    "type": "filament",
+    "name": "Extrudr FLEX Semisoft TPU @System",
+    "inherits": "fdm_filament_tpu",
+    "from": "system",
+    "filament_id": "OFEXT019",
+    "setting_id": "OSEXT019",
+    "instantiation": "true",
+    "filament_vendor": [
+        "Extrudr"
+    ],
+    "filament_type": [
+        "TPU"
+    ],
+    "nozzle_temperature": [
+        "235"
+    ],
+    "nozzle_temperature_initial_layer": [
+        "240"
+    ],
+    "nozzle_temperature_range_low": [
+        "220"
+    ],
+    "nozzle_temperature_range_high": [
+        "250"
+    ],
+    "hot_plate_temp": [
+        "60"
+    ],
+    "hot_plate_temp_initial_layer": [
+        "60"
+    ],
+    "textured_plate_temp": [
+        "60"
+    ],
+    "textured_plate_temp_initial_layer": [
+        "60"
+    ],
+    "compatible_printers": [],
+    "filament_max_volumetric_speed": [
+        "3.2"
+    ]
+}

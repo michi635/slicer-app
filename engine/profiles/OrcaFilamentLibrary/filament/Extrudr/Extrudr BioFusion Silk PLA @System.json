@@ -1,0 +1,43 @@
+{
+    "type": "filament",
+    "name": "Extrudr BioFusion Silk PLA @System",
+    "inherits": "fdm_filament_pla_silk",
+    "from": "system",
+    "filament_id": "OFEXT004",
+    "setting_id": "OSEXT004",
+    "instantiation": "true",
+    "filament_vendor": [
+        "Extrudr"
+    ],
+    "filament_type": [
+        "PLA"
+    ],
+    "nozzle_temperature": [
+        "215"
+    ],
+    "nozzle_temperature_initial_layer": [
+        "220"
+    ],
+    "nozzle_temperature_range_low": [
+        "190"
+    ],
+    "nozzle_temperature_range_high": [
+        "230"
+    ],
+    "hot_plate_temp": [
+        "60"
+    ],
+    "hot_plate_temp_initial_layer": [
+        "60"
+    ],
+    "textured_plate_temp": [
+        "60"
+    ],
+    "textured_plate_temp_initial_layer": [
+        "60"
+    ],
+    "compatible_printers": [],
+    "filament_max_volumetric_speed": [
+        "12"
+    ]
+}

@@ -1,0 +1,43 @@
+{
+    "type": "filament",
+    "name": "Extrudr DuraPro ABS @System",
+    "inherits": "fdm_filament_abs",
+    "from": "system",
+    "filament_id": "OFEXT016",
+    "setting_id": "OSEXT016",
+    "instantiation": "true",
+    "filament_vendor": [
+        "Extrudr"
+    ],
+    "filament_type": [
+        "ABS"
+    ],
+    "nozzle_temperature": [
+        "240"
+    ],
+    "nozzle_temperature_initial_layer": [
+        "245"
+    ],
+    "nozzle_temperature_range_low": [
+        "220"
+    ],
+    "nozzle_temperature_range_high": [
+        "250"
+    ],
+    "hot_plate_temp": [
+        "100"
+    ],
+    "hot_plate_temp_initial_layer": [
+        "100"
+    ],
+    "textured_plate_temp": [
+        "100"
+    ],
+    "textured_plate_temp_initial_layer": [
+        "100"
+    ],
+    "compatible_printers": [],
+    "filament_max_volumetric_speed": [
+        "12"
+    ]
+}

@@ -1,0 +1,43 @@
+{
+    "type": "filament",
+    "name": "Extrudr Wood PLA @System",
+    "inherits": "fdm_filament_pla",
+    "from": "system",
+    "filament_id": "OFEXT010",
+    "setting_id": "OSEXT010",
+    "instantiation": "true",
+    "filament_vendor": [
+        "Extrudr"
+    ],
+    "filament_type": [
+        "PLA"
+    ],
+    "nozzle_temperature": [
+        "185"
+    ],
+    "nozzle_temperature_initial_layer": [
+        "190"
+    ],
+    "nozzle_temperature_range_low": [
+        "170"
+    ],
+    "nozzle_temperature_range_high": [
+        "190"
+    ],
+    "hot_plate_temp": [
+        "60"
+    ],
+    "hot_plate_temp_initial_layer": [
+        "60"
+    ],
+    "textured_plate_temp": [
+        "60"
+    ],
+    "textured_plate_temp_initial_layer": [
+        "60"
+    ],
+    "compatible_printers": [],
+    "filament_max_volumetric_speed": [
+        "8"
+    ]
+}
