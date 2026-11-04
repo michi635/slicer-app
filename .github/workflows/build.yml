@@ -13,147 +13,70 @@ concurrency:
 permissions:
   contents: write
 
-env:
-  WORK: /mnt/w
-
 jobs:
-  # OrcaSlicer's dependencies for Android (Boost, OCCT, OpenCV, ...). Hours on a fresh build, then cached.
-  deps:
+  # The engine for phones and tablets.
+  engine-arm64:
+    uses: ./.github/workflows/engine.yml
+    with:
+      abi: arm64-v8a
+
+  # The same engine for the x86_64 Android emulator, only for the automatic test.
+  engine-x86_64:
+    uses: ./.github/workflows/engine.yml
+    with:
+      abi: x86_64
+
+  # Slices test models on an Android emulator and checks the G-code.
+  engine-test:
+    needs: engine-x86_64
     runs-on: ubuntu-24.04
-    timeout-minutes: 350
-    outputs:
-      key: ${{ steps.key.outputs.key }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache key
-        id: key
-        run: |
-          h=$(cat engine/orca.env engine/patches/*.patch engine/patches/local/*.patch engine/scripts/fetch-orca.sh engine/scripts/build-deps.sh 2>/dev/null | sha256sum | cut -c1-16)
-          echo "key=deps-arm64-v8a-$h" >> "$GITHUB_OUTPUT"
-
-      - name: Prepare work directory
-        run: |
-          sudo mkdir -p "$WORK" && sudo chown "$USER" "$WORK"
-          df -h / /mnt || true
-
-      - name: Restore dependencies
-        id: cache
-        uses: actions/cache/restore@v4
+      - uses: actions/download-artifact@v4
         with:
-          path: /mnt/w/deps
-          key: ${{ steps.key.outputs.key }}
-          lookup-only: true
+          name: engine-x86_64
+          path: test/engine
 
-      - name: Free disk space
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /opt/hostedtoolcache/CodeQL /usr/local/lib/node_modules || true
-          df -h / /mnt || true
-
-      - name: Install tools
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q --no-install-recommends ninja-build m4 autoconf automake libtool pkg-config gettext
-          source engine/orca.env
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" "cmake;3.22.1" > /dev/null
-          echo "ANDROID_NDK=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
-
-      - name: Fetch OrcaSlicer
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: engine/scripts/fetch-orca.sh "$WORK/orcaslicer-src"
-
-      - name: Build dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: engine/scripts/build-deps.sh "$WORK/orcaslicer-src" "$WORK/deps" "$WORK/dl"
-
-      - name: Dependency build logs
-        if: failure()
-        run: |
-          find "$WORK/orcaslicer-src/deps/build-android" -name '*-err.log' -size +0 -newer "$WORK/orcaslicer-src/CMakeLists.txt" 2>/dev/null | while read -r f; do echo "== $f"; tail -n 60 "$f"; done
-          df -h / /mnt || true
-
-      - name: Save dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+      - uses: actions/download-artifact@v4
         with:
-          path: /mnt/w/deps
-          key: ${{ steps.key.outputs.key }}
+          name: orca-resources-x86_64
+          path: test/res
 
-  # libslic3r and our slicer executable (engine/core).
-  engine:
-    needs: deps
-    runs-on: ubuntu-24.04
-    timeout-minutes: 300
-    steps:
-      - uses: actions/checkout@v4
+      - name: Test models
+        run: python3 engine/tests/make_models.py test/models
 
-      - name: Prepare work directory
-        run: sudo mkdir -p "$WORK" && sudo chown "$USER" "$WORK"
-
-      - name: Restore dependencies
-        uses: actions/cache/restore@v4
-        with:
-          path: /mnt/w/deps
-          key: ${{ needs.deps.outputs.key }}
-          fail-on-cache-miss: true
-
-      - name: Restore compiler cache
-        uses: actions/cache/restore@v4
-        with:
-          path: /mnt/w/ccache
-          key: ccache-arm64-v8a-${{ github.run_id }}
-          restore-keys: ccache-arm64-v8a-
-
-      - name: Install tools
+      - name: Enable KVM
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q --no-install-recommends ninja-build ccache
-          source engine/orca.env
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
-          echo "ANDROID_NDK=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
-          echo "CCACHE_DIR=$WORK/ccache" >> "$GITHUB_ENV"
-          echo "CCACHE_MAXSIZE=4G" >> "$GITHUB_ENV"
-          echo "CCACHE_COMPILERCHECK=content" >> "$GITHUB_ENV"
-          cmake --version | head -1
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
 
-      - name: Fetch OrcaSlicer
-        run: engine/scripts/fetch-orca.sh "$WORK/orcaslicer-src"
+      - name: Slice on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: bash engine/tests/run-on-device.sh test
 
-      - name: Build engine
-        run: |
-          ccache -z || true
-          engine/scripts/build-engine.sh "$WORK" "$WORK/deps/usr/local" "$WORK/out"
-          ccache -s || true
+      - name: Check results
+        run: python3 engine/tests/check_results.py test/results
 
-      - name: Save compiler cache
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/cache/save@v4
         with:
-          path: /mnt/w/ccache
-          key: ccache-arm64-v8a-${{ github.run_id }}
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: engine-arm64-v8a
-          path: /mnt/w/out/
-          retention-days: 14
-
-      - name: Pack profiles
-        run: |
-          mkdir -p "$WORK/res"
-          engine/scripts/pack-resources.sh "$WORK/orcaslicer-src" "$WORK/res/orca.zip"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: orca-resources
-          path: /mnt/w/res/orca.zip
+          name: engine-test-results
+          path: test/results/
           retention-days: 14
 
   # The Android app, signed, published as a GitHub release.
   app:
-    needs: engine
+    needs: engine-arm64
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -166,7 +89,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: orca-resources
+          name: orca-resources-arm64-v8a
           path: android/app/src/main/assets
 
       - uses: actions/setup-java@v4
@@ -193,6 +116,15 @@ jobs:
           path: slicer-app.apk
           retention-days: 30
 
+  # Publish only when the engine passed its test on the emulator.
+  release:
+    needs: [app, engine-test]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: slicer-app-apk
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}

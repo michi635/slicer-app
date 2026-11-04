@@ -1,0 +1,39 @@
+{
+  "printer": "Anycubic Kobra 3 Max 0.4 nozzle",
+  "process": "0.20mm Standard @Anycubic Kobra 3 Max 0.4 nozzle",
+  "filaments": [
+    {
+      "preset": "Extrudr PLA NX2 Matt @System",
+      "color": "#FFFFFF"
+    }
+  ],
+  "overrides": {
+    "spiral_mode": "1"
+  },
+  "objects": [
+    {
+      "path": "@MODELS@/lampshade.stl",
+      "name": "Lampenschirm",
+      "x": 213,
+      "y": 210,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1.5,
+      "filament": 1
+    }
+  ],
+  "expect": {
+    "ok": true,
+    "tool_changes": 0,
+    "nozzle_temp": 215,
+    "bed": [
+      0,
+      0,
+      426,
+      420
+    ]
+  }
+}

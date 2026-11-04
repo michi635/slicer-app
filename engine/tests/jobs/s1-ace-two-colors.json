@@ -1,0 +1,42 @@
+{
+  "printer": "Anycubic Kobra S1 0.4 nozzle",
+  "process": "0.20mm Standard @Anycubic Kobra S1 0.4 nozzle",
+  "filaments": [
+    {
+      "preset": "Anycubic PLA @Anycubic Kobra S1 0.4 nozzle",
+      "color": "#FFFFFF"
+    },
+    {
+      "preset": "Anycubic PLA @Anycubic Kobra S1 0.4 nozzle",
+      "color": "#202020"
+    }
+  ],
+  "arrange": true,
+  "objects": [
+    {
+      "path": "@MODELS@/cube20.stl",
+      "name": "Weiss",
+      "x": 100,
+      "y": 100,
+      "filament": 1
+    },
+    {
+      "path": "@MODELS@/cube20.stl",
+      "name": "Schwarz",
+      "x": 150,
+      "y": 150,
+      "filament": 2
+    }
+  ],
+  "expect": {
+    "ok": true,
+    "start": "G9111",
+    "tool_changes_min": 2,
+    "bed": [
+      0,
+      0,
+      250,
+      250
+    ]
+  }
+}
