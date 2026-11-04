@@ -77,6 +77,8 @@ def check_gcode(name, path, expect):
     (ok if len(lines) > 500 else fail)(f"{name}: {len(lines)} G-code lines")
     if "start" in expect:
         (ok if expect["start"] in text else fail)(f"{name}: start G-code contains {expect['start']}")
+    if expect.get("thumbnail"):
+        (ok if "thumbnail begin" in text or "thumbnail_PNG begin" in text else fail)(f"{name}: thumbnail for the printer screen")
     tool_changes = sum(1 for l in lines if re.match(r"^T\d+\s*(;.*)?$", l.strip()))
     if "tool_changes" in expect:
         (ok if tool_changes == expect["tool_changes"] else fail)(f"{name}: {tool_changes} tool changes (expected {expect['tool_changes']})")

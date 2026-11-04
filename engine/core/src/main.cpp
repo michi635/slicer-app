@@ -36,6 +36,8 @@
 #include "libslic3r/PrintConfig.hpp"
 #include "libslic3r/Utils.hpp"
 
+#include "Thumbnail.hpp"
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -725,7 +727,10 @@ json run_slice(Engine &engine, const Job &job, const std::string &out_path)
     print.process();
     progress(96, "G-code schreiben");
     GCodeProcessorResult gcode_result;
-    const std::string gcode_path = print.export_gcode(out_path, &gcode_result, nullptr);
+    const std::vector<std::string> colours = config.option<ConfigOptionStrings>("filament_colour")->values;
+    const std::string gcode_path = print.export_gcode(out_path, &gcode_result, [&model, &colours](const ThumbnailsParams &params) {
+        return render_thumbnails(model, colours, params);
+    });
     if (gcode_result.gcode_check_result.error_code & 0b1100)
         throw UserError("Der G-code reicht über den Druckbereich hinaus (z. B. durch Brim oder Stützen). Objekte weiter zur Mitte schieben.");
 
