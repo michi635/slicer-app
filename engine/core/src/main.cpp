@@ -119,6 +119,15 @@ struct Engine
             std::cerr << "preset warnings: " << errors << std::endl;
         if (bundle->printers.size() == 0)
             throw UserError("Keine Druckerprofile gefunden (" + data + "/system).");
+        // The desktop app shows only the printers and filaments installed in its setup wizard (app config);
+        // PresetCollection::select_preset_by_name() silently picks another preset for a hidden one. We ship only
+        // the profiles we offer, so all of them are installed.
+        for (Preset &p : bundle->printers)
+            p.is_visible = true;
+        for (Preset &p : bundle->prints)
+            p.is_visible = true;
+        for (Preset &p : bundle->filaments)
+            p.is_visible = true;
     }
 
     void select_printer(const std::string &printer)
@@ -146,7 +155,8 @@ struct Engine
         for (const std::string &name : names)
             if (bundle->filaments.find_preset(name, false) == nullptr)
                 throw UserError("Filamentprofil nicht gefunden: " + name);
-        bundle->filaments.select_preset_by_name(names.front(), true);
+        if (!bundle->filaments.select_preset_by_name(names.front(), true) || bundle->filaments.get_selected_preset_name() != names.front())
+            throw UserError("Filamentprofil nicht wählbar: " + names.front());
         bundle->filament_presets = names;
         bundle->update_multi_material_filament_presets();
     }
@@ -715,16 +725,18 @@ json run_slice(Engine &engine, const Job &job, const std::string &out_path)
     print.process();
     progress(96, "G-code schreiben");
     GCodeProcessorResult gcode_result;
-    print.export_gcode(out_path, &gcode_result, nullptr);
+    const std::string gcode_path = print.export_gcode(out_path, &gcode_result, nullptr);
+    if (gcode_result.gcode_check_result.error_code & 0b1100)
+        throw UserError("Der G-code reicht über den Druckbereich hinaus (z. B. durch Brim oder Stützen). Objekte weiter zur Mitte schieben.");
 
     // Full statistics (per layer and object) go to a file next to the G-code; the reply carries the summary.
-    const std::string statistics_path = gcode_statistics_path(out_path);
+    const std::string statistics_path = gcode_statistics_path(gcode_path);
     export_gcode_statistics(gcode_result, statistics_path);
     const json statistics = json::parse(gcode_statistics_json(gcode_result));
 
     json out;
     out["ok"]          = true;
-    out["gcode"]       = out_path;
+    out["gcode"]       = gcode_path;
     out["statistics"]  = statistics_path;
     out["summary"]     = statistics["summary"];
     out["objects"]     = object_positions(model);

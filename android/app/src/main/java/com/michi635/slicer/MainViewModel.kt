@@ -369,7 +369,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 Triple(it.getInt("id"), it.optDouble("length") / 1000.0, it.optDouble("weight"))
             } ?: emptyList()
             val warnings = r.optJSONArray("warnings")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
-            result = SliceResult(out, out.name, s.optDouble("time"), s.optDouble("weight"), s.optInt("layer_count"),
+            val gcode = File(r.optString("gcode", out.path))
+            result = SliceResult(gcode, gcode.name, s.optDouble("time"), s.optDouble("weight"), s.optInt("layer_count"),
                 s.optInt("filament_changes"), filaments, warnings)
         }
     }
