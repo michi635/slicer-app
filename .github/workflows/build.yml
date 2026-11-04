@@ -66,12 +66,12 @@ jobs:
 
       - name: Build dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: engine/scripts/build-deps.sh "$WORK/orcaslicer-src" "$WORK/build-deps" "$WORK/deps" "$WORK/dl"
+        run: engine/scripts/build-deps.sh "$WORK/orcaslicer-src" "$WORK/deps" "$WORK/dl"
 
       - name: Dependency build logs
         if: failure()
         run: |
-          find "$WORK/build-deps" -name '*-err.log' -size +0 -newer "$WORK/orcaslicer-src/CMakeLists.txt" 2>/dev/null | while read -r f; do echo "== $f"; tail -n 60 "$f"; done
+          find "$WORK/orcaslicer-src/deps/build-android" -name '*-err.log' -size +0 -newer "$WORK/orcaslicer-src/CMakeLists.txt" 2>/dev/null | while read -r f; do echo "== $f"; tail -n 60 "$f"; done
           df -h / /mnt || true
 
       - name: Save dependencies
