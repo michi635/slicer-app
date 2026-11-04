@@ -42,3 +42,6 @@ TRIPLE=aarch64-linux-android
 "$STRIP" --strip-unneeded -o "$OUT/libslicercore.so" "$BUILD/mobile-core/slicercore"
 cp "$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/$TRIPLE/libc++_shared.so" "$OUT/"
 ls -la "$OUT"
+# Every library the program needs must be either in $OUT or part of Android itself.
+echo "needed libraries:"
+"$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf" -d "$OUT/libslicercore.so" | grep NEEDED || true

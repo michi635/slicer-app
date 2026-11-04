@@ -117,7 +117,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val fallback = defaults.firstOrNull { it in names } ?: offeredFilaments(c).firstOrNull()?.name ?: return
         val fixed = (if (slots.isEmpty()) listOf(FilamentSlot(fallback, "#FFFFFF")) else slots)
             .map { s -> if (s.preset in names) s else s.copy(preset = equivalent(s.preset, c) ?: fallback) }
-        setSlots(fixed)
+        updateSlots(fixed)
     }
 
     /** The same filament for another printer ("Anycubic PLA @Kobra S1" -> "Anycubic PLA @Kobra 3 Max"). */
@@ -183,18 +183,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // Filament slots (ACE)
 
     fun setSlot(index: Int, slot: FilamentSlot) {
-        setSlots(slots.toMutableList().also { it[index] = slot })
+        updateSlots(slots.toMutableList().also { it[index] = slot })
     }
 
     fun addSlot() {
         if (slots.size >= MAX_SLOTS) return
         val colors = listOf("#FFFFFF", "#202020", "#D32F2F", "#1976D2", "#FBC02D", "#388E3C", "#F57C00", "#7B1FA2")
-        setSlots(slots + slots.last().copy(color = colors[slots.size % colors.size]))
+        updateSlots(slots + slots.last().copy(color = colors[slots.size % colors.size]))
     }
 
     fun removeSlot(index: Int) {
         if (slots.size <= 1) return
-        setSlots(slots.filterIndexed { i, _ -> i != index })
+        updateSlots(slots.filterIndexed { i, _ -> i != index })
         // Objects on a removed slot move to slot 1; later slots shift down.
         objects = objects.map { o ->
             when {
@@ -205,7 +205,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun setSlots(list: List<FilamentSlot>) {
+    private fun updateSlots(list: List<FilamentSlot>) {
         slots = list
         val a = JSONArray(list.map { JSONObject().put("preset", it.preset).put("color", it.color) })
         prefs.edit().putString("slots", a.toString()).apply()
