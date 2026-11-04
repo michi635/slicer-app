@@ -12,7 +12,8 @@ Alles läuft offline auf dem Gerät.
 | --- | --- |
 | `engine/` | Engine-Build: OrcaSlicer-Version (`orca.env`), Android-Patches, Build-Skripte |
 | `engine/core/` | `slicercore`, ein kleines Programm um OrcaSlicers `libslic3r`; die App startet es als eigenen Prozess |
-| `app/` | Android-App (Kotlin, Jetpack Compose) |
+| `engine/profiles/` | eigene Zusatzprofile (z. B. Extrudr), beim Build in OrcaSlicers Profile eingefügt |
+| `android/` | Android-App (Kotlin, Jetpack Compose) |
 | `.github/workflows/` | Baut Engine und APK auf GitHub Actions |
 
 ## Lizenz und Herkunft
