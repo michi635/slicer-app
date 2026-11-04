@@ -10,7 +10,8 @@ on:
 
 env:
   WORK: /mnt/w
-  ABI: ${{ inputs.abi }}
+  # Not named ABI: GMP's configure reads an ABI variable from the environment.
+  TARGET_ABI: ${{ inputs.abi }}
 
 jobs:
   # Boost, OCCT, OpenCV, ... Hours on a fresh build, then cached.
@@ -26,10 +27,10 @@ jobs:
         id: key
         run: |
           h=$(cat engine/orca.env engine/patches/*.patch engine/patches/local/*.patch engine/scripts/fetch-orca.sh engine/scripts/build-deps.sh 2>/dev/null | sha256sum | cut -c1-16)
-          echo "key=deps-$ABI-$h" >> "$GITHUB_OUTPUT"
+          echo "key=deps-$TARGET_ABI-$h" >> "$GITHUB_OUTPUT"
 
       - name: Select ABI
-        run: sed -i "s/^ABI=.*/ABI=$ABI/" engine/orca.env
+        run: sed -i "s/^ABI=.*/ABI=$TARGET_ABI/" engine/orca.env
 
       - name: Prepare work directory
         run: sudo mkdir -p "$WORK" && sudo chown "$USER" "$WORK"
@@ -87,7 +88,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Select ABI
-        run: sed -i "s/^ABI=.*/ABI=$ABI/" engine/orca.env
+        run: sed -i "s/^ABI=.*/ABI=$TARGET_ABI/" engine/orca.env
 
       - name: Prepare work directory
         run: sudo mkdir -p "$WORK" && sudo chown "$USER" "$WORK"
