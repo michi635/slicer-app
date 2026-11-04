@@ -4,6 +4,8 @@
 file(GLOB SLICERCORE_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 add_executable(slicercore ${SLICERCORE_SOURCES})
 target_include_directories(slicercore PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+# "nlohmann/json.hpp" and other bundled headers, as libslic3r includes them
+target_include_directories(slicercore SYSTEM PRIVATE "${CMAKE_SOURCE_DIR}/deps_src" "${CMAKE_SOURCE_DIR}/src")
 target_compile_features(slicercore PRIVATE cxx_std_17)
 target_link_libraries(slicercore PRIVATE libslic3r cereal::cereal ${CMAKE_DL_LIBS})
 if (ANDROID)
