@@ -114,6 +114,23 @@ fun ResultScreen(vm: MainViewModel, r: SliceResult) {
                     }
                 }
 
+                Spacer(Modifier.padding(12.dp))
+                Button(onClick = { shareFile(context, r.gcode, "G-code an Anycubic-App senden") }, Modifier.fillMaxWidth()) {
+                    Icon(Icons.Filled.Share, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Teilen (z. B. an Anycubic-App)")
+                }
+                OutlinedButton(onClick = { shareFile(context, r.gcode, "G-code öffnen mit", view = true) }, Modifier.fillMaxWidth()) {
+                    Text("Öffnen mit …")
+                }
+                OutlinedButton(onClick = { save.launch(r.name) }, Modifier.fillMaxWidth()) {
+                    Icon(Icons.Filled.Save, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Speichern unter …")
+                }
+                SectionTitle("Schichtvorschau")
+                LayerPreview(r.gcode, vm.printer, vm.slots.map { parseColor(it.color) }, Modifier.fillMaxWidth())
+
                 if (r.filaments.isNotEmpty()) {
                     SectionTitle("Verbrauch je Filament")
                     r.filaments.forEach { (slot, meters, grams) ->
@@ -143,20 +160,6 @@ fun ResultScreen(vm: MainViewModel, r: SliceResult) {
                     }
                 }
 
-                Spacer(Modifier.padding(12.dp))
-                Button(onClick = { shareFile(context, r.gcode, "G-code an Anycubic-App senden") }, Modifier.fillMaxWidth()) {
-                    Icon(Icons.Filled.Share, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Teilen (z. B. an Anycubic-App)")
-                }
-                OutlinedButton(onClick = { shareFile(context, r.gcode, "G-code öffnen mit", view = true) }, Modifier.fillMaxWidth()) {
-                    Text("Öffnen mit …")
-                }
-                OutlinedButton(onClick = { save.launch(r.name) }, Modifier.fillMaxWidth()) {
-                    Icon(Icons.Filled.Save, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Speichern unter …")
-                }
                 Text(
                     r.name,
                     Modifier.padding(top = 12.dp),
