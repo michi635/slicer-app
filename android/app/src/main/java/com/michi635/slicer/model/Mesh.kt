@@ -16,6 +16,8 @@ import kotlin.math.sin
 class Mesh(
     /** x, y, z of every distinct vertex, relative to the bounding-box centre. */
     val points: FloatArray,
+    /** Three point indices per triangle (degenerate triangles from merging close vertices removed). */
+    val indices: IntArray,
     val triangles: Int,
     val sizeX: Float,
     val sizeY: Float,
@@ -39,7 +41,10 @@ class Mesh(
     }
 
     /** Height of the object for a rotation and scale. */
-    fun height(rotation: Rotation, scale: Double): Double {
+    fun height(rotation: Rotation, scale: Double): Double = zRange(rotation, scale).let { it[1] - it[0] }
+
+    /** Lowest and highest z relative to the object's centre for a rotation and scale. */
+    fun zRange(rotation: Rotation, scale: Double): DoubleArray {
         val m = rotation.matrix()
         var lo = Double.MAX_VALUE
         var hi = -Double.MAX_VALUE
@@ -48,7 +53,7 @@ class Mesh(
             if (z < lo) lo = z
             if (z > hi) hi = z
         }
-        return if (pointCount == 0) 0.0 else (hi - lo) * scale
+        return if (pointCount == 0) doubleArrayOf(0.0, 0.0) else doubleArrayOf(lo * scale, hi * scale)
     }
 
     companion object {
@@ -84,7 +89,7 @@ class Mesh(
                         val o = 12 + v * 12
                         collector.add(bb.getFloat(o), bb.getFloat(o + 4), bb.getFloat(o + 8))
                     }
-                    collector.triangles++
+                    collector.endTriangle()
                 }
             }
         }
@@ -98,7 +103,7 @@ class Mesh(
                     val parts = line.split(Regex("\\s+"))
                     if (parts.size < 4) continue
                     collector.add(parts[1].toFloat(), parts[2].toFloat(), parts[3].toFloat())
-                    if (++vertices % 3 == 0) collector.triangles++
+                    if (++vertices % 3 == 0) collector.endTriangle()
                 }
             }
         }
@@ -109,6 +114,11 @@ class Mesh(
 private class PointCollector {
     var triangles = 0
     private var keys = LongArray(1 shl 16) { EMPTY }
+    private var values = IntArray(1 shl 16)
+    private var tri = IntArray(3 * 4096)
+    private var triSize = 0
+    private val pending = IntArray(3)
+    private var pendingCount = 0
     private var size = 0
     private var coords = FloatArray(3 * 4096)
     private var minX = Float.MAX_VALUE; private var minY = Float.MAX_VALUE; private var minZ = Float.MAX_VALUE
@@ -119,34 +129,51 @@ private class PointCollector {
         if (y < minY) minY = y; if (y > maxY) maxY = y
         if (z < minZ) minZ = z; if (z > maxZ) maxZ = z
         val key = (q(x) shl 42) or (q(y) shl 21) or q(z)
-        if (insert(key)) {
+        val index = insert(key)
+        if (index == size) {
             if (3 * size + 3 > coords.size) coords = coords.copyOf(coords.size * 2)
             coords[3 * size] = x; coords[3 * size + 1] = y; coords[3 * size + 2] = z
             size++
         }
+        if (pendingCount < 3) pending[pendingCount++] = index
+    }
+
+    fun endTriangle() {
+        triangles++
+        if (pendingCount == 3 && pending[0] != pending[1] && pending[1] != pending[2] && pending[0] != pending[2]) {
+            if (triSize + 3 > tri.size) tri = tri.copyOf(tri.size * 2)
+            tri[triSize] = pending[0]; tri[triSize + 1] = pending[1]; tri[triSize + 2] = pending[2]
+            triSize += 3
+        }
+        pendingCount = 0
     }
 
     private fun q(v: Float): Long = ((v * 20.0).roundToLong() + (1L shl 20)) and 0x1FFFFF
 
-    private fun insert(key: Long): Boolean {
+    /** Index of the point with this key; a new point gets index [size]. */
+    private fun insert(key: Long): Int {
         if (size * 2 >= keys.size) grow()
         var i = mix(key) and (keys.size - 1)
         while (true) {
             val k = keys[i]
-            if (k == EMPTY) { keys[i] = key; return true }
-            if (k == key) return false
+            if (k == EMPTY) { keys[i] = key; values[i] = size; return size }
+            if (k == key) return values[i]
             i = (i + 1) and (keys.size - 1)
         }
     }
 
     private fun grow() {
-        val old = keys
-        keys = LongArray(old.size * 2) { EMPTY }
-        for (k in old) {
+        val oldKeys = keys
+        val oldValues = values
+        keys = LongArray(oldKeys.size * 2) { EMPTY }
+        values = IntArray(oldKeys.size * 2)
+        for (j in oldKeys.indices) {
+            val k = oldKeys[j]
             if (k == EMPTY) continue
             var i = mix(k) and (keys.size - 1)
             while (keys[i] != EMPTY) i = (i + 1) and (keys.size - 1)
             keys[i] = k
+            values[i] = oldValues[j]
         }
     }
 
@@ -164,7 +191,7 @@ private class PointCollector {
             out[3 * i + 1] = coords[3 * i + 1] - cy
             out[3 * i + 2] = coords[3 * i + 2] - cz
         }
-        return Mesh(out, triangles, maxX - minX, maxY - minY, maxZ - minZ)
+        return Mesh(out, tri.copyOf(triSize), triangles, maxX - minX, maxY - minY, maxZ - minZ)
     }
 
     companion object { const val EMPTY = Long.MIN_VALUE }

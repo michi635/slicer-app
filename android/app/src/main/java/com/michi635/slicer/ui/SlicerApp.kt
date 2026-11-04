@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -38,6 +39,8 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -143,9 +146,19 @@ private fun PlatePane(vm: MainViewModel, modifier: Modifier, onOpen: () -> Unit)
                 TextButton(onClick = onOpen) { Text("STL-Datei öffnen") }
             }
         } else {
-            PlateView(vm, Modifier.weight(1f).fillMaxWidth())
+            var threeD by rememberSaveable { mutableStateOf(false) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 6.dp)) {
+                FilterChip(selected = !threeD, onClick = { threeD = false }, label = { Text("Draufsicht") })
+                FilterChip(selected = threeD, onClick = { threeD = true }, label = { Text("3D") })
+            }
+            if (threeD) {
+                Plate3D(vm, Modifier.weight(1f).fillMaxWidth())
+            } else {
+                PlateView(vm, Modifier.weight(1f).fillMaxWidth())
+            }
             Text(
-                "Tippen wählt ein Objekt, Ziehen verschiebt es.",
+                if (threeD) "Ein Finger dreht die Ansicht, zwei Finger zoomen, Doppeltippen setzt zurück."
+                else "Tippen wählt ein Objekt, Ziehen verschiebt es.",
                 Modifier.padding(vertical = 6.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
