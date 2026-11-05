@@ -68,7 +68,8 @@ def check_describe(results):
 
 
 MOVE = re.compile(r"^G[01]\s")
-COORD = re.compile(r"([XYZEF])(-?\d+\.?\d*)")
+# OrcaSlicer drops the leading zero of values below 1 ("E.0234"), so the integer part is optional.
+COORD = re.compile(r"([XYZEF])(-?(?:\d+\.?\d*|\.\d+))")
 
 
 def check_gcode(name, path, expect):
@@ -93,6 +94,7 @@ def check_gcode(name, path, expect):
     lo_x = lo_y = 1e9
     hi_x = hi_y = -1e9
     relative = False
+    extrusions = 0
     for l in lines:
         s = l.split(";")[0].strip()
         if s.startswith("G91"):
@@ -108,9 +110,13 @@ def check_gcode(name, path, expect):
             y = float(c["Y"])
         if "E" in c and float(c["E"]) > 0 and ("X" in c or "Y" in c):
             lo_x, lo_y, hi_x, hi_y = min(lo_x, x), min(lo_y, y), max(hi_x, x), max(hi_y, y)
+            extrusions += 1
+    if extrusions < 100:
+        fail(f"{name}: only {extrusions} extrusion moves found")
+        return
     bx0, by0, bx1, by1 = expect.get("bed", [0, 0, 1e9, 1e9])
     inside = lo_x >= bx0 - 0.5 and lo_y >= by0 - 0.5 and hi_x <= bx1 + 0.5 and hi_y <= by1 + 0.5
-    (ok if inside else fail)(f"{name}: extrusion within X {lo_x:.1f}..{hi_x:.1f}, Y {lo_y:.1f}..{hi_y:.1f}")
+    (ok if inside else fail)(f"{name}: {extrusions} extrusion moves within X {lo_x:.1f}..{hi_x:.1f}, Y {lo_y:.1f}..{hi_y:.1f}")
 
 
 def check_jobs(results):
