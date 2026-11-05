@@ -49,8 +49,11 @@ def check_describe(results):
     elif r:
         fail(f"describe-all: {r.get('error')}")
     # Kobra S1: Anycubic's 0.20 mm profile plus our seven derived ones (engine/profiles/Anycubic/process)
+    # Without a process the printer's own default is selected (never OrcaSlicer's built-in "- Default Print -"),
+    # and the values shown in the app are that profile's: Anycubic uses 15 % infill and tree supports.
     for name, printer, processes in (("describe-s1", "Anycubic Kobra S1 0.4 nozzle", 8),
                                      ("describe-3max", "Anycubic Kobra 3 Max 0.4 nozzle", 6)):
+        default_process = "0.20mm Standard @" + printer
         r = reply(results, name)
         if not r:
             continue
@@ -58,6 +61,9 @@ def check_describe(results):
             fail(f"{name}: {r.get('error')}")
             continue
         (ok if r["selected"]["printer"] == printer else fail)(f"{name}: selected printer {r['selected']['printer']}")
+        (ok if r["selected"]["process"] == default_process else fail)(f"{name}: selected process {r['selected']['process']}")
+        for key, value in (("sparse_infill_density", "15%"), ("support_type", "tree(auto)")):
+            (ok if r["values"].get(key) == value else fail)(f"{name}: profile value {key} = {r['values'].get(key)} (expected {value})")
         (ok if len(r["processes"]) >= processes else fail)(f"{name}: {len(r['processes'])} processes (expected >= {processes})")
         vendors = {f.get("vendor") for f in r["filaments"]}
         names = [f["name"] for f in r["filaments"]]

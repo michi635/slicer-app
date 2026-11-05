@@ -1,0 +1,22 @@
+{
+  "printer": "Anycubic Kobra S1 0.4 nozzle",
+  "process": "- Default Print -",
+  "filaments": [
+    {
+      "preset": "Anycubic PLA @Anycubic Kobra S1 0.4 nozzle",
+      "color": "#FFFFFF"
+    }
+  ],
+  "objects": [
+    {
+      "path": "@MODELS@/cube20.stl",
+      "name": "Würfel",
+      "x": 125,
+      "y": 125,
+      "filament": 1
+    }
+  ],
+  "expect": {
+    "ok": false
+  }
+}

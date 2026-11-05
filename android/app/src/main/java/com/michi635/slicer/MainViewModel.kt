@@ -67,7 +67,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             busy = Busy("Profile laden …")
             val savedPrinter = prefs.getString("printer", null)
             val savedProcess = prefs.getString("process", null)
-            if (!loadCatalog(savedPrinter, savedProcess) && savedProcess != null) loadCatalog(savedPrinter, null)
+            if (!loadCatalog(savedPrinter, savedProcess) && savedProcess != null) {
+                // The saved quality is gone (or was the built-in default of an older version): use the printer's own.
+                message = null
+                loadCatalog(savedPrinter, null)
+            }
             busy = null
             core.version().optString("version").let { engineVersion = it }
         }

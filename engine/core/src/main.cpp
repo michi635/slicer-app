@@ -140,12 +140,37 @@ struct Engine
             throw UserError("Druckerprofil nicht gefunden: " + printer);
         // Like the GUI after a printer change: pick a compatible process and filament if the current ones are not.
         bundle->update_compatible(PresetSelectCompatibleType::Always, PresetSelectCompatibleType::Always);
+        // update_compatible() never unselects the built-in "- Default Print -" (selected at load, as the app config is
+        // empty), so pick the printer's own default process like the desktop app's setup does.
+        const Preset &current = bundle->prints.get_selected_preset();
+        if (current.is_default || !current.is_compatible || !current.is_system) {
+            const std::string preferred = bundle->printers.get_selected_preset().config.opt_string("default_print_profile");
+            const Preset     *choice    = bundle->prints.find_preset(preferred, false);
+            if (!usable_process(choice)) {
+                choice = nullptr;
+                for (const Preset &p : bundle->prints)
+                    if (usable_process(&p)) {
+                        choice = &p;
+                        break;
+                    }
+            }
+            if (choice == nullptr)
+                throw UserError("Kein Qualitätsprofil für " + printer + " gefunden.");
+            const std::string name = choice->name;
+            if (!bundle->prints.select_preset_by_name(name, true) || bundle->prints.get_selected_preset_name() != name)
+                throw UserError("Qualitätsprofil nicht wählbar: " + name);
+        }
     }
+
+    static bool usable_process(const Preset *p) { return p != nullptr && p->is_system && !p->is_default && p->is_compatible; }
 
     void select_process(const std::string &process)
     {
         if (process.empty())
             return;
+        // Only Anycubic's (and our) process profiles for the selected printer, never the built-in default.
+        if (!usable_process(bundle->prints.find_preset(process, false)))
+            throw UserError("Qualitätsprofil nicht gefunden: " + process);
         if (!bundle->prints.select_preset_by_name(process, true) || bundle->prints.get_selected_preset_name() != process)
             throw UserError("Qualitätsprofil nicht gefunden: " + process);
     }
