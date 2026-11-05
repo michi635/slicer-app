@@ -1,0 +1,30 @@
+name: Retag
+
+# One-off: after the history was rewritten (email address replaced), point every release tag at the rewritten
+# commit with the same content (same tree). Removed again right afterwards.
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/retag.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  retag:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Move tags
+        run: |
+          git fetch --force --tags origin
+          for t in $(git tag); do
+            tree=$(git rev-parse "$t^{tree}")
+            new=$(git log main --format='%H %T' | awk -v t="$tree" '$2 == t {print $1; exit}')
+            if [ -z "$new" ]; then echo "no match for $t"; exit 1; fi
+            echo "$t: $(git rev-parse "$t^{commit}") -> $new"
+            git tag -f "$t" "$new"
+          done
+          git push --force origin --tags
