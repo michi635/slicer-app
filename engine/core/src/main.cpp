@@ -693,14 +693,92 @@ ExPolygon rectangle(double x, double y, double w, double h)
     return ExPolygon(p);
 }
 
-// Arrange all objects on the plate, keeping the prime tower's corner free.
-void arrange(Model &model, const DynamicPrintConfig &config, const Tower &tower)
+// Arranging: the objects go into tidy rows with an even gap, the whole group centred on the plate (or on the part of
+// the plate the prime tower leaves free). Of all row widths that fit, the most compact (squarest) layout wins.
+// Objects that do not fit this way are packed by OrcaSlicer's arrange instead.
+struct RowLayout
+{
+    double              width = 0, depth = 0;
+    std::vector<size_t> order;      // item index per position
+    std::vector<Vec2d>  centres;    // footprint centre per item index
+    bool                ok = false;
+};
+
+RowLayout layout_rows(const std::vector<Vec2d> &sizes, const BoundingBoxf &area, double gap)
+{
+    const size_t n = sizes.size();
+    std::vector<size_t> order(n);
+    for (size_t i = 0; i < n; ++i)
+        order[i] = i;
+    // Deepest first, so each row holds objects of similar depth
+    std::stable_sort(order.begin(), order.end(), [&sizes](size_t a, size_t b) {
+        return sizes[a].y() > sizes[b].y() + 1e-6 || (std::abs(sizes[a].y() - sizes[b].y()) <= 1e-6 && sizes[a].x() > sizes[b].x());
+    });
+    const double W = area.size().x(), H = area.size().y();
+    double widest = 0;
+    for (const Vec2d &s : sizes)
+        widest = std::max(widest, s.x());
+
+    RowLayout best;
+    double    best_score = DBL_MAX;
+    for (double limit = widest; limit <= W + 1e-6; limit += 1.) {
+        // Greedy rows up to this width
+        std::vector<std::vector<size_t>> rows;
+        std::vector<double>              row_w, row_d;
+        for (size_t i : order) {
+            const Vec2d s = sizes[i];
+            if (!rows.empty() && row_w.back() + gap + s.x() <= limit + 1e-6) {
+                rows.back().push_back(i);
+                row_w.back() += gap + s.x();
+                row_d.back() = std::max(row_d.back(), s.y());
+            } else {
+                rows.push_back({i});
+                row_w.push_back(s.x());
+                row_d.push_back(s.y());
+            }
+        }
+        double total_w = 0, total_d = gap * double(rows.size() - 1);
+        for (size_t r = 0; r < rows.size(); ++r) {
+            total_w = std::max(total_w, row_w[r]);
+            total_d += row_d[r];
+        }
+        if (total_w > W + 1e-6 || total_d > H + 1e-6)
+            continue;
+        // Compact first (the larger side), then the smaller area
+        const double score = std::max(total_w, total_d) * 1e6 + total_w * total_d;
+        if (score >= best_score)
+            continue;
+        best_score = score;
+        RowLayout l;
+        l.ok = true;
+        l.width = total_w;
+        l.depth = total_d;
+        l.centres.assign(n, Vec2d::Zero());
+        const Vec2d c = area.center();
+        double      y = c.y() + total_d / 2; // rows from the back of the plate to the front
+        for (size_t r = 0; r < rows.size(); ++r) {
+            double x = c.x() - row_w[r] / 2;
+            const double row_y = y - row_d[r] / 2;
+            for (size_t i : rows[r]) {
+                l.centres[i] = Vec2d(x + sizes[i].x() / 2, row_y);
+                x += sizes[i].x() + gap;
+                l.order.push_back(i);
+            }
+            y -= row_d[r] + gap;
+        }
+        best = std::move(l);
+    }
+    return best;
+}
+
+// OrcaSlicer's own arrange (libnest2d): packs tightly, used when the rows do not fit.
+void arrange_packed(Model &model, const DynamicPrintConfig &config, const Tower &tower, double distance)
 {
     const BoundingBoxf bed = bed_box(config);
     BoundingBox        bed_scaled(Point::new_scale(bed.min.x(), bed.min.y()), Point::new_scale(bed.max.x(), bed.max.y()));
 
     arrangement::ArrangeParams params;
-    params.min_obj_distance = scaled(6.);
+    params.min_obj_distance = scaled(distance);
     params.allow_rotations  = false;
     params.printable_height = config.opt_float("printable_height");
 
@@ -723,6 +801,67 @@ void arrange(Model &model, const DynamicPrintConfig &config, const Tower &tower)
     apply_arrange_polys(items, instances, [](arrangement::ArrangePolygon &) {});
     for (ModelObject *obj : model.objects)
         obj->ensure_on_bed();
+}
+
+// Arrange all objects on the plate with a sensible gap between them, keeping the prime tower's corner free.
+void arrange(Model &model, const DynamicPrintConfig &config, const Tower &tower)
+{
+    if (model.objects.empty())
+        return;
+    for (ModelObject *obj : model.objects)
+        obj->ensure_on_bed();
+
+    // Gap between objects: room to grab them and for the skirt, plus the brim of both neighbours
+    const bool   brim      = config.opt_enum<BrimType>("brim_type") != btNoBrim;
+    const double brim_room = brim ? 2 * config.opt_float("brim_width") : 0.;
+    const double margin    = 5.; // to the plate edge
+    const BoundingBoxf bed = bed_box(config);
+
+    std::vector<Vec2d> sizes;
+    for (const ModelObject *obj : model.objects) {
+        const BoundingBoxf3 bb = obj->instance_bounding_box(0);
+        sizes.emplace_back(bb.size().x(), bb.size().y());
+    }
+
+    // Areas to centre the group in: the whole plate, or with a prime tower the plate in front of it or beside it
+    std::vector<BoundingBoxf> areas;
+    BoundingBoxf full(Vec2d(bed.min.x() + margin, bed.min.y() + margin), Vec2d(bed.max.x() - margin, bed.max.y() - margin));
+    if (!tower.present) {
+        areas.push_back(full);
+    } else {
+        const double m = tower.brim + 10.;
+        if (tower.y - m > full.min.y())
+            areas.emplace_back(full.min, Vec2d(full.max.x(), tower.y - m));
+        if (tower.x - m > full.min.x())
+            areas.emplace_back(full.min, Vec2d(tower.x - m, full.max.y()));
+        if (tower.x + tower.width + m < full.max.x())
+            areas.emplace_back(Vec2d(tower.x + tower.width + m, full.min.y()), full.max);
+    }
+
+    for (const double gap : {12. + brim_room, 6. + brim_room}) {
+        RowLayout    best;
+        BoundingBoxf best_area;
+        for (const BoundingBoxf &area : areas) {
+            RowLayout l = layout_rows(sizes, area, gap);
+            if (l.ok && (!best.ok || std::max(l.width, l.depth) < std::max(best.width, best.depth))) {
+                best      = std::move(l);
+                best_area = area;
+            }
+        }
+        if (!best.ok)
+            continue;
+        for (size_t i = 0; i < model.objects.size(); ++i) {
+            ModelObject        *obj = model.objects[i];
+            const BoundingBoxf3 bb  = obj->instance_bounding_box(0);
+            const Vec2d         now(bb.center().x(), bb.center().y());
+            const Vec2d         delta = best.centres[i] - now;
+            for (ModelInstance *inst : obj->instances)
+                inst->set_offset(inst->get_offset() + Vec3d(delta.x(), delta.y(), 0.));
+            obj->invalidate_bounding_box();
+        }
+        return;
+    }
+    arrange_packed(model, config, tower, 6. + brim_room / 2);
 }
 
 json object_positions(const Model &model)

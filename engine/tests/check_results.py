@@ -151,6 +151,22 @@ def check_jobs(results):
         s = r.get("summary", {})
         print(f"     {name}: {s.get('time', 0) / 60:.0f} min, {s.get('weight', 0):.1f} g, {s.get('layer_count')} layers, "
               f"{s.get('filament_changes')} filament changes, warnings {r.get('warnings')}")
+        objects = r.get("objects", [])
+        if "min_gap" in expect:
+            # Arranged objects keep this gap between their footprints (x or y separation)
+            gaps = []
+            for i in range(len(objects)):
+                for j in range(i + 1, len(objects)):
+                    a, b = objects[i]["bbox"], objects[j]["bbox"]
+                    gaps.append(max(b[0] - a[2], a[0] - b[2], b[1] - a[3], a[1] - b[3]))
+            g = min(gaps) if gaps else 0
+            (ok if g >= expect["min_gap"] - 0.5 else fail)(f"{name}: smallest gap between objects {g:.1f} mm (expected >= {expect['min_gap']})")
+        if "centred" in expect and objects:
+            x0 = min(o["bbox"][0] for o in objects); x1 = max(o["bbox"][2] for o in objects)
+            y0 = min(o["bbox"][1] for o in objects); y1 = max(o["bbox"][3] for o in objects)
+            cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+            ex, ey = expect["centred"]
+            (ok if abs(cx - ex) < 2 and abs(cy - ey) < 2 else fail)(f"{name}: group centred at {cx:.1f}/{cy:.1f}")
         path = os.path.join(results, name + ".gcode")
         if not os.path.isfile(path):
             fail(f"{name}: no G-code file")

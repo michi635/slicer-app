@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,14 +45,20 @@ import java.io.File
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-/** Layer-by-layer view of the sliced G-code from above, coloured by feature or by filament. */
+/**
+ * Layer-by-layer view of the sliced G-code, from above or in 3D (the whole part up to the chosen layer, or only that
+ * layer), coloured by feature or by filament.
+ */
 @Composable
 fun LayerPreview(gcode: File, printer: Printer?, slotColors: List<Color>, modifier: Modifier = Modifier) {
     var layers by remember(gcode) { mutableStateOf<List<PreviewLayer>?>(null) }
+    var paths by remember(gcode) { mutableStateOf<Toolpaths?>(null) }
     var failed by remember(gcode) { mutableStateOf(false) }
     LaunchedEffect(gcode) {
-        val read = withContext(Dispatchers.IO) { runCatching { GcodePreview.read(gcode) }.getOrNull() }
-        if (read == null) failed = true else layers = read
+        val read = withContext(Dispatchers.IO) {
+            runCatching { GcodePreview.read(gcode).let { it to Toolpaths.of(it) } }.getOrNull()
+        }
+        if (read == null) failed = true else { layers = read.first; paths = read.second }
     }
     val list = layers
     Column(modifier) {
@@ -69,11 +76,39 @@ fun LayerPreview(gcode: File, printer: Printer?, slotColors: List<Color>, modifi
         }
         var index by remember(list) { mutableIntStateOf(list.size - 1) }
         var byFilament by remember { mutableStateOf(false) }
+        var threeD by rememberSaveable { mutableStateOf(true) }
+        var onlyLayer by rememberSaveable { mutableStateOf(false) }
         val layer = list[index.coerceIn(0, list.size - 1)]
         val bedColor = MaterialTheme.colorScheme.surfaceVariant
         val outline = MaterialTheme.colorScheme.outline
 
-        Canvas(Modifier.fillMaxWidth().aspectRatio(1f)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 6.dp)) {
+            FilterChip(selected = threeD, onClick = { threeD = true }, label = { Text("3D") })
+            FilterChip(selected = !threeD, onClick = { threeD = false }, label = { Text("Draufsicht") })
+        }
+        val toolpaths = paths
+        if (threeD && toolpaths != null) {
+            Gcode3D(
+                ToolpathView(
+                    paths = toolpaths,
+                    bed = doubleArrayOf(printer?.bedMinX ?: 0.0, printer?.bedMinY ?: 0.0, printer?.bedMaxX ?: 250.0, printer?.bedMaxY ?: 250.0),
+                    layer = index.coerceIn(0, list.size - 1),
+                    onlyLayer = onlyLayer,
+                    byFilament = byFilament,
+                    toolColors = slotColors,
+                ),
+                Modifier.fillMaxWidth().aspectRatio(1f),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                FilterChip(selected = !onlyLayer, onClick = { onlyLayer = false }, label = { Text("Ganzes Teil") })
+                FilterChip(selected = onlyLayer, onClick = { onlyLayer = true }, label = { Text("Nur aktuelle Schicht") })
+            }
+            Text(
+                "Ein Finger dreht, zwei Finger zoomen, Doppeltippen setzt zurück. Der Regler wählt die Schicht.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else Canvas(Modifier.fillMaxWidth().aspectRatio(1f)) {
             val minX = printer?.bedMinX ?: 0.0; val minY = printer?.bedMinY ?: 0.0
             val maxX = printer?.bedMaxX ?: 250.0; val maxY = printer?.bedMaxY ?: 250.0
             val pad = 8f

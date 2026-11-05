@@ -1,0 +1,52 @@
+{
+  "printer": "Anycubic Kobra S1 0.4 nozzle",
+  "process": "0.20mm Standard @Anycubic Kobra S1 0.4 nozzle",
+  "filaments": [
+    {
+      "preset": "Anycubic PLA @Anycubic Kobra S1 0.4 nozzle",
+      "color": "#FFFFFF"
+    }
+  ],
+  "overrides": {
+    "brim_type": "no_brim"
+  },
+  "arrange": true,
+  "objects": [
+    {
+      "path": "@MODELS@/cube20.stl",
+      "name": "A",
+      "x": 30,
+      "y": 30,
+      "filament": 1
+    },
+    {
+      "path": "@MODELS@/overhang.stl",
+      "name": "B",
+      "x": 40,
+      "y": 40,
+      "filament": 1
+    },
+    {
+      "path": "@MODELS@/cube20.stl",
+      "name": "C",
+      "x": 50,
+      "y": 30,
+      "filament": 1
+    }
+  ],
+  "expect": {
+    "ok": true,
+    "tool_changes": 0,
+    "bed": [
+      0,
+      0,
+      250,
+      250
+    ],
+    "min_gap": 12,
+    "centred": [
+      125,
+      125
+    ]
+  }
+}
