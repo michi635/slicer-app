@@ -8,3 +8,4 @@ android/app/src/main/jniLibs/
 android/app/src/main/assets/orca.zip
 *.iml
 .idea/
+__pycache__/
