@@ -1,0 +1,33 @@
+{
+    "type": "process",
+    "name": "0.12mm Standard @Anycubic Kobra S1 0.4 nozzle",
+    "inherits": "0.20mm Standard @Anycubic Kobra S1 0.4 nozzle",
+    "from": "system",
+    "setting_id": "OPAKS1002",
+    "instantiation": "true",
+    "print_settings_id": "0.12mm Standard @Anycubic Kobra S1 0.4 nozzle",
+    "compatible_printers": [
+        "Anycubic Kobra S1 0.4 nozzle"
+    ],
+    "layer_height": "0.12",
+    "bottom_shell_layers": "5",
+    "default_acceleration": "4000",
+    "gap_infill_speed": "180",
+    "initial_layer_infill_speed": "60",
+    "initial_layer_speed": "40",
+    "inner_wall_acceleration": "0",
+    "inner_wall_speed": "150",
+    "internal_solid_infill_acceleration": "50%",
+    "internal_solid_infill_speed": "180",
+    "outer_wall_acceleration": "2000",
+    "outer_wall_speed": "60",
+    "overhang_1_4_speed": "60",
+    "overhang_2_4_speed": "30",
+    "overhang_3_4_speed": "10",
+    "sparse_infill_speed": "180",
+    "support_bottom_z_distance": "0.12",
+    "support_threshold_angle": "20",
+    "support_top_z_distance": "0.12",
+    "top_shell_layers": "7",
+    "top_surface_speed": "150"
+}

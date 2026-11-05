@@ -48,7 +48,9 @@ def check_describe(results):
             (ok if m in models else fail)(f"describe: printer model {m}")
     elif r:
         fail(f"describe-all: {r.get('error')}")
-    for name, printer in (("describe-s1", "Anycubic Kobra S1 0.4 nozzle"), ("describe-3max", "Anycubic Kobra 3 Max 0.4 nozzle")):
+    # Kobra S1: Anycubic's 0.20 mm profile plus our seven derived ones (engine/profiles/Anycubic/process)
+    for name, printer, processes in (("describe-s1", "Anycubic Kobra S1 0.4 nozzle", 8),
+                                     ("describe-3max", "Anycubic Kobra 3 Max 0.4 nozzle", 6)):
         r = reply(results, name)
         if not r:
             continue
@@ -56,7 +58,7 @@ def check_describe(results):
             fail(f"{name}: {r.get('error')}")
             continue
         (ok if r["selected"]["printer"] == printer else fail)(f"{name}: selected printer {r['selected']['printer']}")
-        (ok if len(r["processes"]) >= 1 else fail)(f"{name}: {len(r['processes'])} processes")
+        (ok if len(r["processes"]) >= processes else fail)(f"{name}: {len(r['processes'])} processes (expected >= {processes})")
         vendors = {f.get("vendor") for f in r["filaments"]}
         names = [f["name"] for f in r["filaments"]]
         for brand in ("Anycubic", "Extrudr"):
@@ -78,6 +80,8 @@ def check_gcode(name, path, expect):
     (ok if len(lines) > 500 else fail)(f"{name}: {len(lines)} G-code lines")
     if "start" in expect:
         (ok if expect["start"] in text else fail)(f"{name}: start G-code contains {expect['start']}")
+    for needle in expect.get("contains", []):
+        (ok if needle in text else fail)(f"{name}: G-code contains {needle!r}")
     if expect.get("thumbnail"):
         (ok if "thumbnail begin" in text or "thumbnail_PNG begin" in text else fail)(f"{name}: thumbnail for the printer screen")
     tool_changes = sum(1 for l in lines if re.match(r"^T\d+\s*(;.*)?$", l.strip()))

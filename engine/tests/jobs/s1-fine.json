@@ -1,0 +1,34 @@
+{
+  "printer": "Anycubic Kobra S1 0.4 nozzle",
+  "process": "0.12mm Standard @Anycubic Kobra S1 0.4 nozzle",
+  "filaments": [
+    {
+      "preset": "Anycubic PLA @Anycubic Kobra S1 0.4 nozzle",
+      "color": "#3366CC"
+    }
+  ],
+  "objects": [
+    {
+      "path": "@MODELS@/overhang.stl",
+      "name": "Überhang",
+      "x": 125,
+      "y": 125,
+      "filament": 1
+    }
+  ],
+  "expect": {
+    "ok": true,
+    "start": "G9111",
+    "tool_changes": 0,
+    "contains": [
+      "; layer_height = 0.12"
+    ],
+    "bed": [
+      0,
+      0,
+      250,
+      250
+    ],
+    "thumbnail": true
+  }
+}
