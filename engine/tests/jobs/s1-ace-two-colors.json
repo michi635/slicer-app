@@ -38,6 +38,10 @@
       250,
       250
     ],
-    "thumbnail": true
+    "thumbnail": true,
+    "paint": [
+      "PLA",
+      "PLA"
+    ]
   }
 }

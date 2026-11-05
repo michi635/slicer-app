@@ -38,6 +38,7 @@
 
 #include "Thumbnail.hpp"
 
+#include <boost/algorithm/string/predicate.hpp>
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -48,6 +49,7 @@
 #include <exception>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <set>
@@ -232,6 +234,53 @@ json option_choices(const std::string &key)
     if (def->max < FLT_MAX)
         out["max"] = def->max;
     return out;
+}
+
+// Anycubic's own slicer lists the filaments a print uses as "paint_info" in the G-code header and again in an ams_info
+// block at the end. The Anycubic app builds its filament selection (ACE slot per filament) from it; OrcaSlicer does
+// not write it, so the app showed no filaments. One entry per used filament: type, colour as RGB, filament index.
+void add_anycubic_filament_info(const std::string &path, const DynamicPrintConfig &config, const std::map<size_t, double> &used)
+{
+    const auto *types   = config.option<ConfigOptionStrings>("filament_type");
+    const auto *colours = config.option<ConfigOptionStrings>("filament_colour");
+    json paint = json::array();
+    for (const auto &[index, volume] : used) {
+        if (volume <= 0.)
+            continue;
+        const std::string type   = types != nullptr && index < types->values.size() ? types->values[index] : "PLA";
+        const std::string colour = colours != nullptr && index < colours->values.size() ? colours->values[index] : "#FFFFFF";
+        int rgb[3] = {255, 255, 255};
+        if (colour.size() >= 7 && colour[0] == '#')
+            for (int i = 0; i < 3; ++i)
+                rgb[i] = int(std::strtol(colour.substr(1 + 2 * i, 2).c_str(), nullptr, 16));
+        paint.push_back({{"material_type", type}, {"paint_color", {rgb[0], rgb[1], rgb[2]}}, {"paint_index", index}});
+    }
+    if (paint.empty())
+        return;
+    const std::string line = "; paint_info = " + paint.dump() + "\n";
+
+    std::string text;
+    {
+        std::ifstream in(path, std::ios::binary);
+        text.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    }
+    const size_t header_end = text.find("; HEADER_BLOCK_END");
+    if (header_end == std::string::npos || header_end > 4096)
+        return;
+    text.insert(header_end, line);
+    if (!text.empty() && text.back() != '\n')
+        text += '\n';
+    text += "; ams_info = begin\n" + line + "; ams_info = end\n";
+
+    const std::string tmp = path + ".tmp";
+    {
+        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
+        out.write(text.data(), std::streamsize(text.size()));
+        if (!out)
+            throw UserError("G-code konnte nicht geschrieben werden.");
+    }
+    if (std::rename(tmp.c_str(), path.c_str()) != 0)
+        throw UserError("G-code konnte nicht geschrieben werden.");
 }
 
 json describe(Engine &engine, const std::string &printer, const std::string &process)
@@ -758,6 +807,8 @@ json run_slice(Engine &engine, const Job &job, const std::string &out_path)
     });
     if (gcode_result.gcode_check_result.error_code & 0b1100)
         throw UserError("Der G-code reicht über den Druckbereich hinaus (z. B. durch Brim oder Stützen). Objekte weiter zur Mitte schieben.");
+    if (boost::starts_with(config.opt_string("printer_model"), "Anycubic"))
+        add_anycubic_filament_info(gcode_path, config, gcode_result.print_statistics.total_volumes_per_extruder);
 
     // Full statistics (per layer and object) go to a file next to the G-code; the reply carries the summary.
     const std::string statistics_path = gcode_statistics_path(gcode_path);

@@ -86,6 +86,12 @@ def check_gcode(name, path, expect):
     (ok if len(lines) > 500 else fail)(f"{name}: {len(lines)} G-code lines")
     if "start" in expect:
         (ok if expect["start"] in text else fail)(f"{name}: start G-code contains {expect['start']}")
+    if "paint" in expect:
+        # Filament list for the Anycubic app: in the header and again in the ams_info block at the end
+        head = [l for l in lines[:300] if l.startswith("; paint_info = ")]
+        tail = [l for l in lines[-10:] if l.startswith("; paint_info = ")]
+        types = [p["material_type"] for p in json.loads(head[0][15:])] if head else None
+        (ok if types == expect["paint"] and tail == head[:1] else fail)(f"{name}: paint_info for the Anycubic app {types}")
     for needle in expect.get("contains", []):
         (ok if needle in text else fail)(f"{name}: G-code contains {needle!r}")
     if expect.get("thumbnail"):
