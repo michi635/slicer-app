@@ -38,6 +38,7 @@
 
 #include "Thumbnail.hpp"
 
+#include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <nlohmann/json.hpp>
 
@@ -543,6 +544,45 @@ void apply_spiral_mode(DynamicPrintConfig &config)
         config.set_key_value("enable_wrapping_detection", new ConfigOptionBool(false));
 }
 
+// Some of our quality profiles also adjust every filament's settings (bed temperature, cooling), which OrcaSlicer
+// keeps in the filament profiles: data/filament_tweaks.json lists them per profile. A value "+N" adds N, "max:N"
+// caps at N, "atleast:N" raises to N, anything else replaces the value.
+void apply_filament_tweaks(DynamicPrintConfig &config, const std::string &process)
+{
+    std::ifstream in(data_dir() + "/filament_tweaks.json");
+    if (!in)
+        return;
+    const json all = json::parse(in, nullptr, false);
+    if (all.is_discarded() || !all.contains("profiles") || !all["profiles"].contains(process))
+        return;
+    ConfigSubstitutionContext ctx(ForwardCompatibilitySubstitutionRule::Disable);
+    for (auto it = all["profiles"][process].begin(); it != all["profiles"][process].end(); ++it) {
+        const std::string key = it.key();
+        const std::string op  = it.value().get<std::string>();
+        const ConfigOption *opt = config.option(key);
+        if (opt == nullptr)
+            continue;
+        std::vector<std::string> values;
+        boost::split(values, opt->serialize(), boost::is_any_of(","));
+        for (std::string &v : values) {
+            const double cur = std::atof(v.c_str());
+            double       res = cur;
+            if (boost::starts_with(op, "+"))
+                res = cur + std::atof(op.c_str() + 1);
+            else if (boost::starts_with(op, "max:"))
+                res = std::min(cur, std::atof(op.c_str() + 4));
+            else if (boost::starts_with(op, "atleast:"))
+                res = std::max(cur, std::atof(op.c_str() + 8));
+            else
+                res = std::atof(op.c_str());
+            char buf[32];
+            std::snprintf(buf, sizeof(buf), "%g", res);
+            v = buf;
+        }
+        config.set_deserialize(key, boost::join(values, ","), ctx);
+    }
+}
+
 DynamicPrintConfig build_config(Engine &engine, const Job &job)
 {
     engine.select_printer(job.printer);
@@ -560,6 +600,8 @@ DynamicPrintConfig build_config(Engine &engine, const Job &job)
         if (config.has("filament_multi_colour"))
             config.option<ConfigOptionStrings>("filament_multi_colour", true)->values = colors;
     }
+
+    apply_filament_tweaks(config, bundle.prints.get_selected_preset_name());
 
     // The user's settings from the app.
     ConfigSubstitutionContext ctx(ForwardCompatibilitySubstitutionRule::Disable);

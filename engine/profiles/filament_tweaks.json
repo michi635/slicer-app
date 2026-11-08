@@ -1,0 +1,29 @@
+{
+  "_comment": "Per quality profile: changes to every filament's settings (+N add, max:N cap, atleast:N raise to, else set). Against warping of large flat parts: warmer bed, gentler and later part cooling, no side fan blowing across the plate, enclosure exhaust off so the chamber stays warm.",
+  "profiles": {
+    "0.20mm Grosse Platten @Anycubic Kobra S1 0.4 nozzle": {
+      "hot_plate_temp": "+5",
+      "hot_plate_temp_initial_layer": "+10",
+      "textured_plate_temp": "+5",
+      "textured_plate_temp_initial_layer": "+10",
+      "close_fan_the_first_x_layers": "atleast:3",
+      "full_fan_speed_layer": "atleast:6",
+      "fan_max_speed": "max:60",
+      "fan_min_speed": "max:40",
+      "additional_cooling_fan_speed": "0",
+      "during_print_exhaust_fan_speed": "0"
+    },
+    "0.20mm Grosse Platten @Anycubic Kobra 3 Max 0.4 nozzle": {
+      "hot_plate_temp": "+5",
+      "hot_plate_temp_initial_layer": "+10",
+      "textured_plate_temp": "+5",
+      "textured_plate_temp_initial_layer": "+10",
+      "close_fan_the_first_x_layers": "atleast:3",
+      "full_fan_speed_layer": "atleast:6",
+      "fan_max_speed": "max:60",
+      "fan_min_speed": "max:40",
+      "additional_cooling_fan_speed": "0",
+      "during_print_exhaust_fan_speed": "0"
+    }
+  }
+}

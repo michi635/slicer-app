@@ -1,0 +1,45 @@
+{
+  "printer": "Anycubic Kobra S1 0.4 nozzle",
+  "process": "0.20mm Grosse Platten @Anycubic Kobra S1 0.4 nozzle",
+  "filaments": [
+    {
+      "preset": "Anycubic PLA @Anycubic Kobra S1 0.4 nozzle",
+      "color": "#FFFFFF"
+    }
+  ],
+  "objects": [
+    {
+      "path": "@MODELS@/cube20.stl",
+      "name": "Platte",
+      "x": 125,
+      "y": 125,
+      "filament": 1
+    }
+  ],
+  "expect": {
+    "ok": true,
+    "start": "G9111",
+    "tool_changes": 0,
+    "bed": [
+      0,
+      0,
+      250,
+      250
+    ],
+    "paint": [
+      "PLA"
+    ],
+    "contains": [
+      "; hot_plate_temp = 60\n",
+      "; hot_plate_temp_initial_layer = 65\n",
+      "; fan_max_speed = 60\n",
+      "; close_fan_the_first_x_layers = 3\n",
+      "; additional_cooling_fan_speed = 0\n",
+      "; during_print_exhaust_fan_speed = 0\n",
+      "; sparse_infill_pattern = gyroid\n",
+      "; brim_width = 8\n",
+      "; bottom_shell_layers = 4\n",
+      "G9111 bedTemp=65 "
+    ]
+  }
+}
