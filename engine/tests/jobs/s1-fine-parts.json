@@ -1,0 +1,39 @@
+{
+  "printer": "Anycubic Kobra S1 0.4 nozzle",
+  "filaments": [
+    {
+      "preset": "Anycubic PLA @Anycubic Kobra S1 0.4 nozzle",
+      "color": "#FFFFFF"
+    }
+  ],
+  "objects": [
+    {
+      "path": "@MODELS@/overhang.stl",
+      "name": "Teil",
+      "x": 125,
+      "y": 125,
+      "filament": 1
+    }
+  ],
+  "process": "0.16mm Feine Teile @Anycubic Kobra S1 0.4 nozzle",
+  "expect": {
+    "ok": true,
+    "start": "G9111",
+    "tool_changes": 0,
+    "bed": [
+      0,
+      0,
+      250,
+      250
+    ],
+    "paint": [
+      "PLA"
+    ],
+    "contains": [
+      "; wall_generator = arachne\n",
+      "; detect_thin_wall = 1\n",
+      "; slow_down_layer_time = 10\n",
+      "; layer_height = 0.16\n"
+    ]
+  }
+}

@@ -51,8 +51,8 @@ def check_describe(results):
     # Kobra S1: Anycubic's 0.20 mm profile plus our seven derived ones (engine/profiles/Anycubic/process)
     # Without a process the printer's own default is selected (never OrcaSlicer's built-in "- Default Print -"),
     # and the values shown in the app are that profile's: Anycubic uses 15 % infill and tree supports.
-    for name, printer, processes in (("describe-s1", "Anycubic Kobra S1 0.4 nozzle", 8),
-                                     ("describe-3max", "Anycubic Kobra 3 Max 0.4 nozzle", 6)):
+    for name, printer, processes in (("describe-s1", "Anycubic Kobra S1 0.4 nozzle", 12),
+                                     ("describe-3max", "Anycubic Kobra 3 Max 0.4 nozzle", 10)):
         default_process = "0.20mm Standard @" + printer
         r = reply(results, name)
         if not r:

@@ -1,0 +1,39 @@
+{
+  "printer": "Anycubic Kobra S1 0.4 nozzle",
+  "filaments": [
+    {
+      "preset": "Anycubic PLA @Anycubic Kobra S1 0.4 nozzle",
+      "color": "#FFFFFF"
+    }
+  ],
+  "objects": [
+    {
+      "path": "@MODELS@/overhang.stl",
+      "name": "Teil",
+      "x": 125,
+      "y": 125,
+      "filament": 1
+    }
+  ],
+  "process": "0.20mm Extra stabil @Anycubic Kobra S1 0.4 nozzle",
+  "expect": {
+    "ok": true,
+    "start": "G9111",
+    "tool_changes": 0,
+    "bed": [
+      0,
+      0,
+      250,
+      250
+    ],
+    "paint": [
+      "PLA"
+    ],
+    "contains": [
+      "; wall_loops = 5\n",
+      "; sparse_infill_density = 40%\n",
+      "; nozzle_temperature = 210\n",
+      "; fan_max_speed = 70\n"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+    "type": "process",
+    "name": "0.16mm Überhänge @Anycubic Kobra 3 Max 0.4 nozzle",
+    "inherits": "0.16mm Standard @Anycubic Kobra 3 Max 0.4 nozzle",
+    "from": "system",
+    "setting_id": "OPAK3M104",
+    "instantiation": "true",
+    "print_settings_id": "0.16mm Überhänge @Anycubic Kobra 3 Max 0.4 nozzle",
+    "compatible_printers": [
+        "Anycubic Kobra 3 Max 0.4 nozzle"
+    ],
+    "enable_overhang_speed": "1",
+    "overhang_1_4_speed": "60",
+    "overhang_2_4_speed": "30",
+    "overhang_3_4_speed": "15",
+    "overhang_4_4_speed": "10",
+    "extra_perimeters_on_overhangs": "1",
+    "bridge_speed": "25",
+    "internal_bridge_speed": "50",
+    "wall_loops": "3",
+    "wall_sequence": "inner wall/outer wall"
+}

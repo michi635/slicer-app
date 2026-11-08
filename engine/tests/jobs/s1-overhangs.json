@@ -1,0 +1,38 @@
+{
+  "printer": "Anycubic Kobra S1 0.4 nozzle",
+  "filaments": [
+    {
+      "preset": "Anycubic PLA @Anycubic Kobra S1 0.4 nozzle",
+      "color": "#FFFFFF"
+    }
+  ],
+  "objects": [
+    {
+      "path": "@MODELS@/overhang.stl",
+      "name": "Teil",
+      "x": 125,
+      "y": 125,
+      "filament": 1
+    }
+  ],
+  "process": "0.16mm Überhänge @Anycubic Kobra S1 0.4 nozzle",
+  "expect": {
+    "ok": true,
+    "start": "G9111",
+    "tool_changes": 0,
+    "bed": [
+      0,
+      0,
+      250,
+      250
+    ],
+    "paint": [
+      "PLA"
+    ],
+    "contains": [
+      "; extra_perimeters_on_overhangs = 1\n",
+      "; overhang_4_4_speed = 10\n",
+      "; bridge_speed = 25\n"
+    ]
+  }
+}

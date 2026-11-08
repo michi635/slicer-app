@@ -1,0 +1,21 @@
+{
+    "type": "process",
+    "name": "0.20mm Extra stabil @Anycubic Kobra 3 Max 0.4 nozzle",
+    "inherits": "0.20mm Standard @Anycubic Kobra 3 Max 0.4 nozzle",
+    "from": "system",
+    "setting_id": "OPAK3M103",
+    "instantiation": "true",
+    "print_settings_id": "0.20mm Extra stabil @Anycubic Kobra 3 Max 0.4 nozzle",
+    "compatible_printers": [
+        "Anycubic Kobra 3 Max 0.4 nozzle"
+    ],
+    "wall_loops": "5",
+    "top_shell_layers": "6",
+    "top_shell_thickness": "1.2",
+    "bottom_shell_layers": "5",
+    "bottom_shell_thickness": "1",
+    "sparse_infill_density": "40%",
+    "sparse_infill_pattern": "gyroid",
+    "infill_combination": "0",
+    "infill_wall_overlap": "25%"
+}

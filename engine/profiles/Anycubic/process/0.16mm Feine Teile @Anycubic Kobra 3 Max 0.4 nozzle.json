@@ -1,0 +1,21 @@
+{
+    "type": "process",
+    "name": "0.16mm Feine Teile @Anycubic Kobra 3 Max 0.4 nozzle",
+    "inherits": "0.16mm Standard @Anycubic Kobra 3 Max 0.4 nozzle",
+    "from": "system",
+    "setting_id": "OPAK3M102",
+    "instantiation": "true",
+    "print_settings_id": "0.16mm Feine Teile @Anycubic Kobra 3 Max 0.4 nozzle",
+    "compatible_printers": [
+        "Anycubic Kobra 3 Max 0.4 nozzle"
+    ],
+    "wall_generator": "arachne",
+    "detect_thin_wall": "1",
+    "min_feature_size": "25%",
+    "min_bead_width": "85%",
+    "outer_wall_speed": "80",
+    "inner_wall_speed": "120",
+    "small_perimeter_speed": "50%",
+    "brim_type": "outer_only",
+    "brim_width": "3"
+}

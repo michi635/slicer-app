@@ -24,6 +24,28 @@
       "fan_min_speed": "max:40",
       "additional_cooling_fan_speed": "0",
       "during_print_exhaust_fan_speed": "0"
+    },
+    "0.16mm Feine Teile @Anycubic Kobra S1 0.4 nozzle": {
+      "slow_down_layer_time": "atleast:10"
+    },
+    "0.20mm Extra stabil @Anycubic Kobra S1 0.4 nozzle": {
+      "nozzle_temperature": "+5",
+      "fan_max_speed": "max:70"
+    },
+    "0.16mm Überhänge @Anycubic Kobra S1 0.4 nozzle": {
+      "overhang_fan_speed": "100",
+      "enable_overhang_bridge_fan": "1"
+    },
+    "0.16mm Feine Teile @Anycubic Kobra 3 Max 0.4 nozzle": {
+      "slow_down_layer_time": "atleast:10"
+    },
+    "0.20mm Extra stabil @Anycubic Kobra 3 Max 0.4 nozzle": {
+      "nozzle_temperature": "+5",
+      "fan_max_speed": "max:70"
+    },
+    "0.16mm Überhänge @Anycubic Kobra 3 Max 0.4 nozzle": {
+      "overhang_fan_speed": "100",
+      "enable_overhang_bridge_fan": "1"
     }
   }
 }
