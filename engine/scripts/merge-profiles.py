@@ -29,6 +29,7 @@ def main(extra, system):
                 continue
             entries = index.setdefault(list_key, [])
             known = {e["name"] for e in entries}
+            new = {}
             for root, _, files in os.walk(kdir):
                 for name in sorted(files):
                     if not name.endswith(".json"):
@@ -41,9 +42,20 @@ def main(extra, system):
                     os.makedirs(os.path.dirname(dst), exist_ok=True)
                     shutil.copyfile(src, dst)
                     if preset["name"] not in known:
-                        entries.append({"name": preset["name"], "sub_path": sub_path})
-                        known.add(preset["name"])
-                        added += 1
+                        new[preset["name"]] = (sub_path, preset.get("inherits", ""))
+            # OrcaSlicer loads the index in order and needs every parent before the profiles inheriting it:
+            # add our profiles parents first (a parent among them may sort after its children by name).
+            def add(name, seen=()):
+                if name in known or name not in new:
+                    return
+                if name in seen:
+                    sys.exit(f"inheritance loop at {name}")
+                add(new[name][1], seen + (name,))
+                entries.append({"name": name, "sub_path": new[name][0]})
+                known.add(name)
+            for name in sorted(new):
+                add(name)
+            added += len(new)
         with open(index_path, "w", encoding="utf-8") as f:
             json.dump(index, f, indent=4, ensure_ascii=False)
         print(f"{vendor}: {added} extra profiles")
