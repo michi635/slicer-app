@@ -1,0 +1,38 @@
+{
+  "printer": "Anycubic Kobra S1 0.4 nozzle",
+  "process": "0.12mm Oberfläche Extra fein @Anycubic Kobra S1 0.4 nozzle",
+  "filaments": [
+    {
+      "preset": "Anycubic PLA @Anycubic Kobra S1 0.4 nozzle",
+      "color": "#FFFFFF"
+    }
+  ],
+  "objects": [
+    {
+      "path": "@MODELS@/cube20.stl",
+      "name": "Würfel",
+      "x": 125,
+      "y": 125,
+      "filament": 1
+    }
+  ],
+  "expect": {
+    "ok": true,
+    "start": "G9111",
+    "bed": [
+      0,
+      0,
+      250,
+      250
+    ],
+    "paint": [
+      "PLA"
+    ],
+    "contains": [
+      "; layer_height = 0.12\n",
+      "; outer_wall_speed = 45\n",
+      ";TYPE:Ironing\n",
+      "; slow_down_layer_time = 10\n"
+    ]
+  }
+}

@@ -46,6 +46,12 @@
     "0.16mm Überhänge @Anycubic Kobra 3 Max 0.4 nozzle": {
       "overhang_fan_speed": "100",
       "enable_overhang_bridge_fan": "1"
+    },
+    "0.12mm Oberfläche Extra fein @Anycubic Kobra S1 0.4 nozzle": {
+      "slow_down_layer_time": "atleast:10"
+    },
+    "0.12mm Oberfläche Extra fein @Anycubic Kobra 3 Max 0.4 nozzle": {
+      "slow_down_layer_time": "atleast:10"
     }
   }
 }

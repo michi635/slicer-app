@@ -14,7 +14,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +31,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -78,6 +84,7 @@ fun SettingsPanel(vm: MainViewModel, modifier: Modifier = Modifier) {
         }
 
         FilamentSection(vm)
+        ColorChangeSection(vm)
 
         SectionTitle("Füllung")
         PercentSlider(vm, "sparse_infill_density", "Fülldichte")
@@ -110,6 +117,9 @@ fun SettingsPanel(vm: MainViewModel, modifier: Modifier = Modifier) {
         }
         BoolRow(vm, "thick_bridges", "Dicke Brücken")
         EnumRow(vm, "enable_extra_bridge_layer", "Zusätzliche Brückenschicht")
+
+        SectionTitle("Fuzzy Skin (raue Oberfläche)")
+        FuzzySkinRows(vm)
 
         Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
             TextButton(onClick = { vm.resetAll() }, enabled = vm.overrides.isNotEmpty()) { Text("Alle Einstellungen zurücksetzen") }
@@ -167,6 +177,122 @@ private fun PercentSlider(vm: MainViewModel, key: String, label: String) {
             onValueChangeFinished = { dragging = false; vm.setValue(key, "${(live / 5).roundToInt() * 5}%") },
             valueRange = 0f..100f,
             steps = 19,
+        )
+    }
+}
+
+/** OrcaSlicer's fuzzy skin areas; "disabled_fuzzy" is its off, "none" (only painted areas) makes no sense here. */
+private val FUZZY = listOf(
+    "disabled_fuzzy" to "Aus",
+    "external" to "Nur außen (Außenkontur)",
+    "hole" to "Nur innen (Löcher und Öffnungen)",
+    "all" to "Außen und innen",
+    "allwalls" to "Alle Wände (auch innere)",
+)
+
+@Composable
+private fun FuzzySkinRows(vm: MainViewModel) {
+    if (vm.catalog?.options?.containsKey("fuzzy_skin") != true) return
+    val value = vm.valueOf("fuzzy_skin").let { if (it == "none" || it.isEmpty()) "disabled_fuzzy" else it }
+    fun label(v: String) = FUZZY.firstOrNull { it.first == v }?.second ?: v
+    SettingRow("Bereich", vm.isOverridden("fuzzy_skin"), { vm.reset("fuzzy_skin") }) {
+        Choice(label(value), FUZZY, { it.second }, { vm.setValue("fuzzy_skin", it.first) })
+    }
+    if (value != "disabled_fuzzy") {
+        FloatRow(vm, "fuzzy_skin_thickness", "Stärke (mm)", 0.05, 1.0, 0.05)
+        FloatRow(vm, "fuzzy_skin_point_distance", "Punktabstand (mm)", 0.2, 3.0, 0.1)
+        Text(
+            "Stärke: wie weit die Wand nach innen und außen ausschlägt. Punktabstand: kleiner = feinere Körnung. " +
+                "Die erste Schicht bleibt glatt, damit das Teil haftet.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+private fun fmt(v: Double): String = String.format(java.util.Locale.US, "%.2f", v).trimEnd('0').trimEnd('.')
+
+@Composable
+private fun FloatRow(vm: MainViewModel, key: String, label: String, min: Double, max: Double, step: Double) {
+    val value = vm.valueOf(key).toDoubleOrNull() ?: min
+    fun set(v: Double) = vm.setValue(key, fmt((v / step).roundToInt() * step))
+    SettingRow(label, vm.isOverridden(key), { vm.reset(key) }) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { set(value - step) }, enabled = value > min + 1e-6) { Text("−") }
+            Text(fmt(value).replace('.', ','), Modifier.width(44.dp), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+            TextButton(onClick = { set(value + step) }, enabled = value < max - 1e-6) { Text("+") }
+        }
+    }
+}
+
+/** Colour changes by height: from a height on, the whole plate continues with another ACE slot. */
+@Composable
+private fun ColorChangeSection(vm: MainViewModel) {
+    var adding by remember { mutableStateOf(false) }
+    SectionTitle("Farbwechsel nach Höhe")
+    if (vm.slots.size < 2) {
+        Text(
+            "Ab einer Höhe mit einer anderen Farbe weiterdrucken. Dafür oben mindestens zwei Slots anlegen.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    vm.colorChanges.forEachIndexed { i, change ->
+        val slot = vm.slots.getOrNull(change.slot - 1)
+        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            ColorDot(parseColor(slot?.color ?: "#888888"))
+            Spacer(Modifier.width(12.dp))
+            Text(
+                "ab ${fmt(change.z).replace('.', ',')} mm: Slot ${change.slot}" + (slot?.let { s -> vm.filamentOf(s)?.label }?.let { " · $it" } ?: ""),
+                Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+            IconButton(onClick = { vm.removeColorChange(i) }) { Icon(Icons.Filled.Close, contentDescription = "Farbwechsel entfernen") }
+        }
+    }
+    TextButton(onClick = { adding = true }) {
+        Icon(Icons.Filled.Add, contentDescription = null)
+        Text("Farbwechsel hinzufügen")
+    }
+    Text(
+        "Gilt für die ganze Platte: Darunter wird mit dem Slot der Objekte gedruckt, ab der Höhe mit dem gewählten. " +
+            "Alle Objekte müssen denselben Slot haben. Beim Wechsel entsteht ein Reinigungsturm.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+
+    if (adding) {
+        val height = vm.plateHeight
+        var text by remember { mutableStateOf("") }
+        var slot by remember { mutableIntStateOf(2) }
+        val z = text.replace(',', '.').toDoubleOrNull()
+        val valid = z != null && z > 0.0 && (height <= 0.0 || z < height)
+        AlertDialog(
+            onDismissRequest = { adding = false },
+            title = { Text("Farbwechsel") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { text = it },
+                        label = { Text("Ab Höhe (mm)") },
+                        singleLine = true,
+                        isError = text.isNotEmpty() && !valid,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        supportingText = {
+                            Text(if (height > 0.0) "Höchstes Objekt: ${fmt(height).replace('.', ',')} mm" else "Noch kein Objekt auf der Platte")
+                        },
+                    )
+                    Spacer(Modifier.padding(4.dp))
+                    fun name(i: Int) = "Slot $i" + (vm.slots.getOrNull(i - 1)?.let { s -> vm.filamentOf(s)?.label }?.let { " · $it" } ?: "")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ColorDot(parseColor(vm.slots.getOrNull(slot - 1)?.color ?: "#888888"))
+                        Spacer(Modifier.width(12.dp))
+                        Choice(name(slot), (1..vm.slots.size).toList(), { name(it) }, { slot = it })
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { vm.addColorChange(z!!, slot); adding = false }, enabled = valid) { Text("Hinzufügen") }
+            },
+            dismissButton = { TextButton(onClick = { adding = false }) { Text("Abbrechen") } },
         )
     }
 }

@@ -99,6 +99,7 @@ const std::vector<std::string> &ui_keys()
         "brim_type", "skirt_loops",
         "spiral_mode",
         "thick_bridges", "enable_extra_bridge_layer",
+        "fuzzy_skin", "fuzzy_skin_thickness", "fuzzy_skin_point_distance",
         "enable_prime_tower", "prime_tower_width",
     };
     return keys;
@@ -371,6 +372,8 @@ struct Job
     std::string                        bed_type;
     std::vector<JobObject>             objects;
     bool                               arrange = false;
+    // Switch to another filament from a height on: <z in mm, 1-based filament>, for the whole plate.
+    std::vector<std::pair<double, int>> color_changes;
 };
 
 std::string as_setting(const json &v)
@@ -413,6 +416,9 @@ Job read_job(const std::string &path)
         job.overrides[it.key()] = as_setting(it.value());
     job.bed_type = j.value("bed_type", "");
     job.arrange  = j.value("arrange", false);
+    for (const json &c : j.value("color_changes", json::array()))
+        job.color_changes.emplace_back(c.value("z", 0.), c.value("filament", 1));
+    std::sort(job.color_changes.begin(), job.color_changes.end());
     for (const json &o : j.value("objects", json::array())) {
         JobObject obj;
         obj.path         = o.value("path", "");
@@ -657,6 +663,8 @@ Model load_model(const Job &job, int filament_count)
     return model;
 }
 
+double max_object_height(const Model &model);
+
 std::vector<unsigned int> used_filaments(const Model &model, const DynamicPrintConfig &config)
 {
     std::set<unsigned int> ids;
@@ -670,7 +678,40 @@ std::vector<unsigned int> used_filaments(const Model &model, const DynamicPrintC
         if (int f = config.opt_int("support_interface_filament"); f > 0)
             ids.insert(f - 1);
     }
+    for (const CustomGCode::Item &item : model.get_curr_plate_custom_gcodes().gcodes)
+        if (item.type == CustomGCode::ToolChange)
+            ids.insert(unsigned(item.extruder - 1));
     return std::vector<unsigned int>(ids.begin(), ids.end());
+}
+
+// Colour changes by height: from each height on, the whole plate is printed with another filament. OrcaSlicer does
+// this with its per-layer tool changes, which only apply while everything on the plate uses one filament.
+void apply_color_changes(Model &model, const DynamicPrintConfig &config, const Job &job, int filament_count)
+{
+    if (job.color_changes.empty())
+        return;
+    if (config.opt_bool("spiral_mode"))
+        throw UserError("Farbwechsel nach Höhe geht nicht im Vasenmodus.");
+    if (used_filaments(model, config).size() != 1)
+        throw UserError("Farbwechsel nach Höhe geht nur, wenn alle Objekte (und die Stützen) dasselbe Filament verwenden.");
+    const double       height  = max_object_height(model);
+    const auto        *colours = config.option<ConfigOptionStrings>("filament_colour");
+    CustomGCode::Info  info;
+    info.mode = CustomGCode::MultiAsSingle;
+    for (const auto &[z, filament] : job.color_changes) {
+        if (filament < 1 || filament > filament_count)
+            throw UserError("Farbwechsel: Slot " + std::to_string(filament) + " gibt es nicht.");
+        if (z <= 0. || z >= height)
+            throw UserError("Farbwechsel: Die Höhe muss zwischen 0 und der Objekthöhe (" + float_to_string_decimal_point(height, 1) + " mm) liegen.");
+        CustomGCode::Item item;
+        item.print_z  = z;
+        item.type     = CustomGCode::ToolChange;
+        item.extruder = filament;
+        item.color    = colours != nullptr && size_t(filament - 1) < colours->values.size() ? colours->values[filament - 1] : "";
+        info.gcodes.push_back(item);
+    }
+    model.curr_plate_index       = 0;
+    model.plates_custom_gcodes[0] = info;
 }
 
 double max_object_height(const Model &model)
@@ -931,6 +972,7 @@ json run_arrange(Engine &engine, const Job &job)
     progress(5, "Profile laden");
     DynamicPrintConfig config = build_config(engine, job);
     Model              model  = load_model(job, int(engine.bundle->filament_presets.size()));
+    apply_color_changes(model, config, job, int(engine.bundle->filament_presets.size()));
     Tower              tower  = place_prime_tower(config, model);
     arrange(model, config, tower);
     return {{"ok", true}, {"objects", object_positions(model)}, {"prime_tower", tower_json(tower)}};
@@ -944,6 +986,7 @@ json run_slice(Engine &engine, const Job &job, const std::string &out_path)
     progress(4, "Modelle laden");
     const int filament_count = int(engine.bundle->filament_presets.size());
     Model     model          = load_model(job, filament_count);
+    apply_color_changes(model, config, job, filament_count);
     Tower     tower          = place_prime_tower(config, model);
     if (job.arrange)
         arrange(model, config, tower);

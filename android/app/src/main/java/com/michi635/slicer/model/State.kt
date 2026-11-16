@@ -94,6 +94,9 @@ data class OptionInfo(val label: String, val type: String, val choices: List<Pai
 /** One slot of the ACE (or the single spool without ACE). */
 data class FilamentSlot(val preset: String, val color: String)
 
+/** From this height (mm above the plate) on, the whole plate is printed with the filament of this ACE slot (1-based). */
+data class ColorChange(val z: Double, val slot: Int)
+
 /** An object on the plate. x/y is the centre of its bounding box on the bed, in mm. */
 data class PlateObject(
     val id: Long,

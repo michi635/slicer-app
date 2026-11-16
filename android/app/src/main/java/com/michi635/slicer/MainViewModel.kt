@@ -11,6 +11,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.michi635.slicer.engine.SlicerCore
 import com.michi635.slicer.model.Catalog
+import com.michi635.slicer.model.ColorChange
 import com.michi635.slicer.model.Filament
 import com.michi635.slicer.model.FilamentSlot
 import com.michi635.slicer.model.Mesh
@@ -49,6 +50,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var overrides by mutableStateOf(loadOverrides()); private set
     var objects by mutableStateOf<List<PlateObject>>(emptyList()); private set
     var selectedId by mutableStateOf<Long?>(null)
+    var colorChanges by mutableStateOf<List<ColorChange>>(emptyList()); private set
     var primeTower by mutableStateOf<PrimeTower?>(null); private set
     var busy by mutableStateOf<Busy?>(null); private set
     var message by mutableStateOf<String?>(null)
@@ -207,6 +209,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 else -> o
             }
         }
+        colorChanges = colorChanges.filter { it.slot != index + 1 }.map { if (it.slot > index + 1) it.copy(slot = it.slot - 1) else it }
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+    // Colour changes by height
+
+    /** Height of the tallest object on the plate, in mm. */
+    val plateHeight: Double get() = objects.maxOfOrNull { it.height } ?: 0.0
+
+    fun addColorChange(z: Double, slot: Int) {
+        colorChanges = (colorChanges.filter { kotlin.math.abs(it.z - z) > 0.01 } + ColorChange(z, slot)).sortedBy { it.z }
+    }
+
+    fun removeColorChange(index: Int) {
+        colorChanges = colorChanges.filterIndexed { i, _ -> i != index }
     }
 
     private fun updateSlots(list: List<FilamentSlot>) {
@@ -303,6 +320,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         objects = emptyList()
         selectedId = null
         primeTower = null
+        colorChanges = emptyList()
     }
 
     private fun norm(d: Double): Double = ((d % 360) + 360) % 360
@@ -327,6 +345,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     .put("scale", o.scale)
                     .put("filament", o.slot.coerceIn(1, slots.size))
             }))
+            .put("color_changes", JSONArray(colorChanges.filter { it.slot in 1..slots.size }.map { JSONObject().put("z", it.z).put("filament", it.slot) }))
     }
 
     fun arrange() {

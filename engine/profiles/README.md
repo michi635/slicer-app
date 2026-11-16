@@ -35,3 +35,13 @@ Abluft aus, damit es im Gehäuse warm bleibt.
   25 % Überlappung Füllung/Wand. Filament: Düse +5 °C und Lüfter höchstens 70 % für bessere Schichthaftung.
 - **0.16mm Überhänge** (erbt 0.16mm Standard): langsamer je steiler der Überhang (60/30/15/10 mm/s),
   Zusatzwand an Überhängen, Brücken 25 mm/s, erst Innen- dann Aussenwand. Filament: Überhang-Lüfter 100 %.
+
+## Oberflächen-Qualitäten (Kobra S1 und Kobra 3 Max)
+
+Gemeinsam: Wandfolge innen-aussen-innen, 3 Wände, Aussenwand 60 mm/s, Innenwand 100 mm/s, Beschleunigung 4000
+(Aussenwand 1500), Scarf-Naht an allen Wänden (schräg überlappend statt Stoss), Abwischen an der Naht,
+Deckfläche 60 mm/s in durchgehenden Linien.
+
+- **0.16mm Schöne Oberfläche**: wie oben.
+- **0.20mm Glatte Deckfläche**: zusätzlich Bügeln aller Deckflächen (30 mm/s, 10 % Fluss, 0,15 mm Abstand).
+- **0.12mm Oberfläche Extra fein**: Aussenwand 45 mm/s, Bügeln nur der obersten Fläche, jede Schicht mindestens 10 s.

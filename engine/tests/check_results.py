@@ -51,8 +51,8 @@ def check_describe(results):
     # Kobra S1: Anycubic's 0.20 mm profile plus our seven derived ones (engine/profiles/Anycubic/process)
     # Without a process the printer's own default is selected (never OrcaSlicer's built-in "- Default Print -"),
     # and the values shown in the app are that profile's: Anycubic uses 15 % infill and tree supports.
-    for name, printer, processes in (("describe-s1", "Anycubic Kobra S1 0.4 nozzle", 12),
-                                     ("describe-3max", "Anycubic Kobra 3 Max 0.4 nozzle", 10)):
+    for name, printer, processes in (("describe-s1", "Anycubic Kobra S1 0.4 nozzle", 15),
+                                     ("describe-3max", "Anycubic Kobra 3 Max 0.4 nozzle", 13)):
         default_process = "0.20mm Standard @" + printer
         r = reply(results, name)
         if not r:
@@ -92,6 +92,32 @@ def check_gcode(name, path, expect):
         tail = [l for l in lines[-10:] if l.startswith("; paint_info = ")]
         types = [p["material_type"] for p in json.loads(head[0][15:])] if head else None
         (ok if types == expect["paint"] and tail == head[:1] else fail)(f"{name}: paint_info for the Anycubic app {types}")
+    if "tool_at" in expect:
+        # Colour changes by height: which tool prints the outer wall of the layer at each height
+        tool, z, by_z = None, 0.0, {}
+        for l in lines:
+            m = re.match(r"^T(\d+)\s*(;.*)?$", l.strip())
+            if m:
+                tool = int(m.group(1))
+            elif l.startswith(";Z:"):
+                z = float(l[3:])
+            elif l.startswith(";TYPE:Outer wall"):
+                by_z.setdefault(z, tool)
+        zs = sorted(by_z)
+        first = by_z[zs[0]] if zs else None
+        for at, want in expect["tool_at"].items():
+            layer = min((q for q in zs if q >= float(at) - 1e-6), default=None)
+            got = None if layer is None or by_z[layer] is None or first is None else by_z[layer] - first
+            (ok if got == want else fail)(f"{name}: at {at} mm filament +{got} relative to the first (expected +{want})")
+    if "outer_wall_moves_min" in expect:
+        # Fuzzy skin breaks the outer wall into many short moves
+        n, outer = 0, False
+        for l in lines:
+            if l.startswith(";TYPE:"):
+                outer = l.startswith(";TYPE:Outer wall")
+            elif outer and l.startswith("G1 ") and " E" in l:
+                n += 1
+        (ok if n >= expect["outer_wall_moves_min"] else fail)(f"{name}: {n} outer wall moves (expected >= {expect['outer_wall_moves_min']})")
     for needle in expect.get("contains", []):
         (ok if needle in text else fail)(f"{name}: G-code contains {needle!r}")
     if expect.get("thumbnail"):
@@ -152,6 +178,8 @@ def check_jobs(results):
         print(f"     {name}: {s.get('time', 0) / 60:.0f} min, {s.get('weight', 0):.1f} g, {s.get('layer_count')} layers, "
               f"{s.get('filament_changes')} filament changes, warnings {r.get('warnings')}")
         objects = r.get("objects", [])
+        if expect.get("prime_tower"):
+            (ok if r.get("prime_tower") else fail)(f"{name}: prime tower {r.get('prime_tower')}")
         if "min_gap" in expect:
             # Arranged objects keep this gap between their footprints (x or y separation)
             gaps = []
